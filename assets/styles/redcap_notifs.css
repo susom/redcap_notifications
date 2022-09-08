@@ -1,0 +1,116 @@
+#redcap_notifs_blocker{
+    position: fixed; /* Sit on top of the page content */
+    width: 100%; /* Full width (cover the whole page) */
+    height: 100%; /* Full height (cover the whole page) */
+    top: 0; left: 0; right: 0; bottom: 0;
+    border:1px transparent #fff;
+}
+#redcap_notifs_blocker:before{
+    content:"";
+    border:1px transparent #fff;
+    background-color: #000;
+    position: absolute; /* Sit on top of the page content */
+    width: 100%; /* Full width (cover the whole page) */
+    height: 100%; /* Full height (cover the whole page) */
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-repeat:no-repeat;
+    background-position:50% 40%;
+    background-size:10%;
+    background-color: rgba(0,0,0,0.5); /* Black background with opacity */
+    z-index: 20; /* Specify a stack order in case you're using a different order for other elements */
+    cursor: pointer; /* Add a pointer on hover */
+}
+
+#redcap_banner_notifs{
+    width:100%;
+    max-width:800px;
+}
+
+#redcap_modal_notifs {
+    position:fixed;
+    top:10%; right:0;
+    width:20vw;
+    min-width:240px; max-width:320px;
+    max-height:80vh;
+    padding-right:10px;
+}
+
+#redcap_modal_notifs .alert {
+    position:initial; height:initial;
+    display:block;
+}
+
+#redcap_modal_notifs .hide_notifs{
+    position:relative;
+    height:30px;
+}
+#redcap_modal_notifs .hide_notifs:after{
+    content: "hide";
+    position: absolute;
+    right: 0;
+    padding: 3px 10px;
+    text-align: center;
+    background: orange;
+    border-radius: 3px;
+    cursor: pointer;
+    color: #fff;
+    font-size: 77%;
+}
+#redcap_modal_notifs .hide_notifs.show:after{
+    content: "show";
+    background: lightskyblue;
+}
+
+.redcap_notifs .alert{
+    position:relative !important;
+    padding:10px;
+}
+
+.redcap_notifs .alert .notif_hdr{
+    position:absolute;
+    top:10px; left:10px;
+    font-size:85%;
+    width:auto;
+    padding: 3px 0;
+}
+
+.redcap_notifs .alert .notif_bdy {
+    text-align: left;
+    font-size:100%;
+    padding: initial;
+    margin:25px 0 0 ;
+}
+
+.redcap_notifs .alert .notif_bdy .headline{
+    font-size:108%;
+    margin:0 0 5px;
+}
+
+.redcap_notifs .alert .notif_bdy .lead{
+    font-size:92%;
+}
+
+.redcap_notifs  .alert .notif_ftr{
+    display:none;
+    position:absolute;
+    top:10px; right:10px;
+    font-size:100%;
+    width:auto;
+}
+.redcap_notifs .alert.dismissable .notif_ftr{
+    display:block;
+}
+
+.redcap_notifs .alert .notif_ftr button{
+    display: block;
+    width: 100%;
+    border: none;
+    border-radius: 3px;
+    padding: 3px 5px;
+    cursor: pointer;
+    background: #D75757;
+    color: #fff;
+    font-size:77%;
+}
+
+

@@ -2,7 +2,7 @@
 namespace Stanford\RedcapNotifications;
 
 require_once "emLoggerTrait.php";
-require_once "js/notifications.js";
+//require_once "js/notifications.js";
 
 use DateTime;
 use REDCap;
@@ -17,28 +17,34 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 	}
 
     function redcap_every_page_top($project_id) {
-
         // If this is the Home page, update the list of notifications which pertain to this user
         // This can be changed but is a start.  refreshNotifications can be called on a timer to refresh
         // at whatever rate we thing is necessary.
-        if (PAGE == 'index.php' and empty($_GET) ) {
-
+        if (PAGE == "index.php" && empty($_GET) ) {
             // Retrieve the list of notifications to send to client
             $this->refreshNotifications($this->getUser()->getUsername());
         }
 
         // Call javascript to insert notifications onto the page depending on what type of page it is
-        $this->emDebug("Page in redcap_every_page_top: " . PAGE . ", action = " . $_GET['action'] . ", is this a survey page? " . $this->isSurveyPage() . ", for proj " . $project_id);
+//        $this->emDebug("Page in redcap_every_page_top: " . PAGE . ", action = " . $_GET['action'] . ", is this a survey page? " . $this->isSurveyPage() . ", for proj " . $project_id);
 
         // Survey page
         if ($this->isSurveyPage()) {
             $this->emDebug("Survey page for project " . $project_id);
+
         } else if (!empty($project_id)) {
             $this->emDebug("Project page for project " . $project_id);
+
         } else {
             $this->emDebug("System page for project " . $project_id);
         }
 
+        try {
+            // in case we are loading record homepage load its the record children if existed
+            $this->injectREDCapNotifs();
+        } catch (\Exception $e) {
+            // TODO routine to handle exception , probably nothing, catch them next time.
+        }
     }
 
     /**
@@ -48,29 +54,30 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @return void
      */
     public function refreshNotifications($user) {
-
         // Retrieve projects which hold the notifications and dismissals
-        $notification_pid = $this->getSystemProjectIDs('notification-pid');
-        $dismissal_pid = $this->getSystemProjectIDs('dismissal-pid');
+        $notification_pid   = $this->getSystemProjectIDs('notification-pid');
+        $dismissal_pid      = $this->getSystemProjectIDs('dismissal-pid');
 
         // Get current timestamp so we can pull notifications that are still open
-        $new_timestamp = new DateTime();
-        $now = $new_timestamp->format('Y-m-d H:i:s');
+        $new_timestamp      = new DateTime();
+        $now                = $new_timestamp->format('Y-m-d H:i:s');
 
         // Find which projects this user is a member
         [$allProjectslists, $projAdminProjects] = $this->getAllProjectList($user, $now);
 
         // Retrieve list of projects that this person is a Designated Contact
-        $dcProjects = $this->getDCProjectList($user);
+        $dcProjects         = $this->getDCProjectList($user);
 
         // Get list of notifications that have already been dismissed and should not be displayed again
-        $dismissed = $this->getDismissedNotifications($dismissal_pid, $user);
+        $dismissed          = $this->getDismissedNotifications($dismissal_pid, $user);
 
         // Pull all system notifications
-        $allNotifications['system'] = $this->getSystemNotifications($notification_pid, $now, $dcProjects, $projAdminProjects, $dismissed);
+        $allNotifications['system']     = $this->getSystemNotifications($notification_pid, $now, $dcProjects, $projAdminProjects, $dismissed);
 
         // Pull all project level notifications
-        $allNotifications['project'] = $this->getProjectNotifications($notification_pid, $now, $allProjectslists, $dcProjects, $projAdminProjects, $dismissed);
+        $allNotifications['project']    = $this->getProjectNotifications($notification_pid, $now, $allProjectslists, $dcProjects, $projAdminProjects, $dismissed);
+
+        $this->emDebug("all notification", $allNotifications);
 
         // Store all the notifications in a session cookie
         $status = $this->sendCookie(json_encode($allNotifications));
@@ -89,7 +96,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $cookiePath = '/'; // Cookie is available to entire domain
         $return = setcookie(self::COOKIE_NAME, $cookieData, $expireTime, $cookiePath);
         if ($return) {
-            $this->emDebug("Set cookie successfully returned");
+//            $this->emDebug("Set cookie successfully returned");
             $this->emDebug("This is the stored cookie: " . $_COOKIE[self::COOKIE_NAME]);
             return true;
 
@@ -127,8 +134,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
                         and (rur.expiration is null or rur.expiration > cast(? as date))', [$user, $now]
         );
 
-        $allProjList = array();
-        $projAdminList = array();
+        $allProjList    = array();
+        $projAdminList  = array();
         while($row = $db_return->fetch_assoc()){
             $allProjList[] = $row['project_id'];
             if (empty($row['role_name']) and $row['user_rights'] = '1' and $row['design'] = '1') {
@@ -148,6 +155,9 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @return array
      */
     private function getDCProjectList($user) {
+        //TODO i dont hvae this in my entity table?
+        $this->emDebug("TODO comeback to this getDCProjectList");
+        return [];
 
         // Find projects that this user is the Designated Contact
         $dbReturn = $this->query(
@@ -177,14 +187,13 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     private function getSystemNotifications($notification_pid, $now, $dcProjects, $projAdminProjects, $dismissed) {
 
         // We are first pulling 'general' notifications that are not project dependant
-        $filter = "([note_target] = 'gen') and ([note_start_dt] < '" . $now . "') and ([note_end_dt] > '" . $now . "') and " .
-                    "[form_1_complete] = '2'";
-        $this->emDebug("This is the system filter: " . $filter);
+        $filter = "([note_target] = 'gen') and ([note_start_dt] < '" . $now . "') and ([note_end_dt] > '" . $now . "') ";
+//        $this->emDebug("This is the system filter $notification_pid: " . $filter);
 
         // Retrieve notifications that fit the criteria
-        $active_notifications = REDCap::getData($notification_pid, 'json', null, null, null, null, null, null, null, $filter);
-        $this->emDebug("These are system notifications: " . $active_notifications);
-        $sys_notifications = json_decode($active_notifications, true);
+        $active_notifications   = REDCap::getData($notification_pid, 'json', null, null, null, null, null, null, null, $filter);
+//        $this->emDebug("These are system notifications in $notification_pid: " . $active_notifications);
+        $sys_notifications      = json_decode($active_notifications, true);
 
         // Check if this notification pertains to this user
         $sysNotifications = array();
@@ -233,16 +242,15 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     private function getProjectNotifications($notification_pid, $now, $allProjectslists, $dcProjects, $projAdminProjects, $dismissed) {
 
         // Now check for project level notifications that are active and we are a member
-        $filter = "([note_target] = 'proj') and ([note_start_dt] < '" . $now . "') and ([note_end_dt] > '" . $now . "') and " .
-                    "[form_1_complete] = '2'";
+        $filter = "([note_target] = 'proj') and ([note_start_dt] < '" . $now . "') and ([note_end_dt] > '" . $now . "') ";
 
         // Retrieve notifications that fit the criteria and we are on the project
-        $active_notifications = REDCap::getData($notification_pid, 'json', null, null, null, null, null, null, null, $filter);
-        $this->emDebug("Active Project Notifications: " . $active_notifications);
-        $proj_notifications = json_decode($active_notifications, true);
+        $active_notifications   = REDCap::getData($notification_pid, 'json', null, null, null, null, null, null, null, $filter);
+//        $this->emDebug("Active Project Notifications: " . $active_notifications);
+        $proj_notifications     = json_decode($active_notifications, true);
 
-        $projNotifications = array();
-        $repeatMsg = array();
+        $projNotifications  = array();
+        $repeatMsg          = array();
         foreach($proj_notifications as $notification) {
 
             // If this alert record_id is in the dismissed list, don't display anymore. Also, make sure we are a member
@@ -275,8 +283,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
             }
         }
 
-        $this->emDebug("Repeat message list: " . json_encode($repeatMsg));
-        $this->emDebug("This is the final project notifications list: " . json_encode($projNotifications));
+//        $this->emDebug("Repeat message list: " . json_encode($repeatMsg));
+//        $this->emDebug("This is the final project notifications list: " . json_encode($projNotifications));
 
         return $projNotifications;
     }
@@ -289,11 +297,9 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @return array
      */
     private function getDismissedNotifications($dismissal_pid, $user) {
-
-        $this->emDebug("Dismissed pid: " . $dismissal_pid . ", user: " . $user);
-        $filter = "[note_username] = '" . $user . "'";
-        $dismissed = REDCap::getData($dismissal_pid, 'json', null, null, null, null, null, null, null, $filter);
-        $this->emDebug("Dismissed list: " . $dismissed);
+        $filter     = "[note_username] = '" . $user . "'";
+        $dismissed  = REDCap::getData($dismissal_pid, 'json', null, null, null, null, null, null, null, $filter);
+//        $this->emDebug("Dismissed list for $user: " , json_decode($dismissed,1));
 
         $dismissedNote = array();
         foreach($dismissed as $each_dismissed) {
@@ -303,5 +309,33 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         return $dismissedNote;
     }
 
+
+    /**
+     * INJECT FRONT END CODE TO DISPLAY ALERTS.
+     *
+     * @param $alerts
+     * @return array
+     */
+    public function injectREDCapNotifs()
+    {
+        $dismissal_cb   = $this->getUrl("pages/DismissalCallBack.php");
+        $notif_css      = $this->getUrl("assets/styles/redcap_notifs.css");
+        $notifs_js      = $this->getUrl("assets/scripts/redcap_notifs.js");
+        $notif_js       = $this->getUrl("assets/scripts/redcap_notif.js");
+        $cur_user       = $this->getUser()->getUsername();
+        ?>
+        <link rel="stylesheet" href="<?= $notif_css ?>">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js" integrity="sha512-3j3VU6WC5rPQB4Ld1jnLV7Kd5xr+cq9avvhwqzbH/taCRNURoeEpoPBK9pDyeukwSxwRPJ8fDgvYXd6SkaZ2TA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <script src="<?= $notif_js ?>" type="text/javascript"></script>
+        <script src="<?= $notifs_js ?>" type="text/javascript"></script>
+        <script>
+            var dismissal_cb    = "<?=$dismissal_cb?>";
+            var cur_user        = "<?=$cur_user?>";
+            $(window).on('load', function () {
+                var rc_notifs = new RCNotifs(cur_user, dismissal_cb);
+            });
+        </script>
+        <?php
+    }
 
 }

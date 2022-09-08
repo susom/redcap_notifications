@@ -26,8 +26,8 @@ $new_timestamp = new DateTime();
 $now = $new_timestamp->format('Y-m-d H:i:s');
 
 // Find the dismissed notification project ID and reserve a new record_id
-$dismissalPid = $module->getSystemProjectIDs('dismissal-pid');
-$newRecordId = REDCap::reserveNewRecordId($dismissalPid);
+$dismissalPid   = $module->getSystemProjectIDs('dismissal-pid');
+$newRecordId    = REDCap::reserveNewRecordId($dismissalPid);
 
 $dismissData = array(
     "record_id"                 => $newRecordId,
