@@ -37,6 +37,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 
         } else {
             $this->emDebug("System page for project " . $project_id);
+
         }
 
         try {
@@ -53,7 +54,9 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @param $user
      * @return void
      */
-    public function refreshNotifications($user) {
+    public function refreshNotifications($user, $since_last_update=null, $project_or_system=null) {
+        //TODO 9/11 MAKE THIS MORE GRANULAR?  SYSTEM OR PROJECT OR...???
+
         // Retrieve projects which hold the notifications and dismissals
         $notification_pid   = $this->getSystemProjectIDs('notification-pid');
         $dismissal_pid      = $this->getSystemProjectIDs('dismissal-pid');
@@ -77,11 +80,14 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         // Pull all project level notifications
         $allNotifications['project']    = $this->getProjectNotifications($notification_pid, $now, $allProjectslists, $dcProjects, $projAdminProjects, $dismissed);
 
-        $this->emDebug("all notification", $allNotifications);
+        $notif_payload = $project_or_system && array_key_exists($project_or_system,$allNotifications) ? $allNotifications[$project_or_system] : array_merge($allNotifications['system'], $allNotifications['project']);
 
-        // Store all the notifications in a session cookie
-        $status = $this->sendCookie(json_encode($allNotifications));
+        $this->emDebug("notifications", $notif_payload);
 
+        return array(
+             "notifs" => $notif_payload
+            ,"server_time" => $now
+        );
     }
 
     /**
@@ -319,6 +325,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     public function injectREDCapNotifs()
     {
         $dismissal_cb   = $this->getUrl("pages/DismissalCallBack.php");
+        $refresh_notifs = $this->getUrl("pages/refreshNotifs.php");
         $notif_css      = $this->getUrl("assets/styles/redcap_notifs.css");
         $notifs_js      = $this->getUrl("assets/scripts/redcap_notifs.js");
         $notif_js       = $this->getUrl("assets/scripts/redcap_notif.js");
@@ -329,10 +336,12 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         <script src="<?= $notif_js ?>" type="text/javascript"></script>
         <script src="<?= $notifs_js ?>" type="text/javascript"></script>
         <script>
-            var dismissal_cb    = "<?=$dismissal_cb?>";
-            var cur_user        = "<?=$cur_user?>";
+            var dismissal_cb        = "<?=$dismissal_cb?>";
+            var refresh_notifs      = "<?=$refresh_notifs?>";
+            var cur_user            = "<?=$cur_user?>";
+            var redcap_csrf_token   = "<?=$this->getCSRFToken()?>";
             $(window).on('load', function () {
-                var rc_notifs = new RCNotifs(cur_user, dismissal_cb);
+                var rc_notifs = new RCNotifs(cur_user, refresh_notifs, dismissal_cb, redcap_csrf_token);
             });
         </script>
         <?php

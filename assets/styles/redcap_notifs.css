@@ -35,9 +35,15 @@
     padding-right:10px;
 }
 
-#redcap_modal_notifs .alert {
-    position:initial; height:initial;
-    display:block;
+#redcap_modal_notifs .notif_cont {
+    position: absolute;
+    padding-right: 10px;
+    left : 0;
+    transition: left .5s ease-in-out;
+    -webkit-transition: left .5s ease-in-out;
+}
+#redcap_modal_notifs .notif_cont.hide{
+    left : 50px;
 }
 
 #redcap_modal_notifs .hide_notifs{
@@ -61,11 +67,14 @@
     background: lightskyblue;
 }
 
+#redcap_modal_notifs .alert {
+    position:initial; height:initial;
+    display:block;
+}
 .redcap_notifs .alert{
     position:relative !important;
     padding:10px;
 }
-
 .redcap_notifs .alert .notif_hdr{
     position:absolute;
     top:10px; left:10px;
@@ -73,23 +82,19 @@
     width:auto;
     padding: 3px 0;
 }
-
 .redcap_notifs .alert .notif_bdy {
     text-align: left;
     font-size:100%;
     padding: initial;
     margin:25px 0 0 ;
 }
-
 .redcap_notifs .alert .notif_bdy .headline{
     font-size:108%;
     margin:0 0 5px;
 }
-
 .redcap_notifs .alert .notif_bdy .lead{
     font-size:92%;
 }
-
 .redcap_notifs  .alert .notif_ftr{
     display:none;
     position:absolute;
@@ -100,7 +105,6 @@
 .redcap_notifs .alert.dismissable .notif_ftr{
     display:block;
 }
-
 .redcap_notifs .alert .notif_ftr button{
     display: block;
     width: 100%;
