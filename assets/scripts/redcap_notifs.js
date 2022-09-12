@@ -1,3 +1,23 @@
+var modal_container = `<div class="modal fade show" id="external-modules-configure-modal" name="external-modules-configure-modal" data-module="" tabindex="-1" data-toggle="modal" data-backdrop="static" data-keyboard="true" style="display: block;" aria-modal="true" role="dialog">
+                            <div class="modal-dialog" role="document" style="max-width: 950px !important;">
+                                <div class="modal-content">
+                                    <div class="modal-header py-2">
+                                        <button type="button" class="py-2 close closeCustomModal hide_notifs" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+                                        <h4 id="add-edit-title-text" class="modal-title form-control-custom">REDCap Notifications</h4>
+                                    </div>
+                                    <div class="modal-body pt-2">
+                                        <div id="errMsgContainerModal" class="alert alert-danger col-md-12" role="alert" style="display:none;margin-bottom:20px;"></div>
+                                        <div class="mb-2">These notifications can be dismissed or 'snoozed'.  But should not be ignored.</div>
+                                        <div class="notif_cont"></div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button data-toggle="modal" class="btn btn-rcgreen" id="btnModalsaveAlert" onclick="return false;">Save</button>
+                                        <button class="btn btn-defaultrc" id="btnCloseCodesModal" data-dismiss="modal" onclick="return false;">Cancel</button>
+                                    </div>
+                                </div>
+                            </div>
+                       </div>`;
+
 function RCNotifs(cur_user, refresh_endpoint, dismiss_endpoint, redcap_csrf_token) {
     this.notifs             = null;
     this.notif_html         = "";
@@ -114,6 +134,8 @@ RCNotifs.prototype.getNotifs = function(){
     if(typeof(Storage) !== "undefined" && localStorage.getItem(this.redcap_notif_storage_key)){
         //IF localstorage, AND localstorage has Notif DATA with key
         notif_payload = JSON.parse(localStorage.getItem(this.redcap_notif_storage_key));
+
+        //TODO system settings WHEN to DO a FULL update (based on time delta? )
     }
 
     if(!notif_payload || (notif_payload && notif_payload.hasOwnProperty("client") && notif_payload["client"]["request_update"])){
@@ -151,6 +173,8 @@ RCNotifs.prototype.showNotifs = function(){
         this.buildNotifs();
     }
 
+
+
     if(this.banner_jq.find(".alert").length){
         if($("#subheader").length){
             $("#subheader").after(this.banner_jq);
@@ -173,7 +197,7 @@ RCNotifs.prototype.buildNotifs = function(){
 
     var html_cont       = {};
     html_cont["banner"] = $("<div>").prop("id", "redcap_banner_notifs").addClass("redcap_notifs").append($("<div>").addClass("hide_notifs")).append($("<div>").addClass("notif_cont"));
-    html_cont["modal"]  = $("<div>").prop("id", "redcap_modal_notifs").addClass("redcap_notifs").append($("<div>").addClass("hide_notifs")).append($("<div>").addClass("notif_cont"));
+    html_cont["modal"]  = $(modal_container).prop("id", "redcap_modal_notifs").addClass("redcap_notifs");
 
     html_cont["modal"].find(".hide_notifs").click(function(){
         if($(this).hasClass("show")){

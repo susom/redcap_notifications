@@ -54,7 +54,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @param $user
      * @return void
      */
-    public function refreshNotifications($user, $since_last_update=null, $project_or_system=null) {
+    public function refreshNotifications($user, $since_last_update=null, $project_or_system_or_both=null) {
         //TODO 9/11 MAKE THIS MORE GRANULAR?  SYSTEM OR PROJECT OR...???
 
         // Retrieve projects which hold the notifications and dismissals
@@ -80,7 +80,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         // Pull all project level notifications
         $allNotifications['project']    = $this->getProjectNotifications($notification_pid, $now, $allProjectslists, $dcProjects, $projAdminProjects, $dismissed);
 
-        $notif_payload = $project_or_system && array_key_exists($project_or_system,$allNotifications) ? $allNotifications[$project_or_system] : array_merge($allNotifications['system'], $allNotifications['project']);
+        $notif_payload = $project_or_system_or_both && array_key_exists($project_or_system_or_both,$allNotifications) ? $allNotifications[$project_or_system] : array_merge($allNotifications['system'], $allNotifications['project']);
 
         $this->emDebug("notifications", $notif_payload);
 
