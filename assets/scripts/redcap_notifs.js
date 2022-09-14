@@ -1,4 +1,4 @@
-var modal_container     = `<div class="modal"  style="display: block;" >
+var modal_container     = `<div id="redcap_modal_notifs" class="modal redcap_notifs"  style="display: block;" >
                             <div class="modal-dialog" role="document" style="max-width: 950px !important;">
                                 <div class="modal-content">
                                     <div class="modal-header py-2">
@@ -16,14 +16,18 @@ var modal_container     = `<div class="modal"  style="display: block;" >
                                         </div>
                                     </div>
                                     <div class="modal-footer">
-                                        <button data-toggle="modal" class="btn btn-rcred dismiss_all">Dismiss All</button>
-                                        <button class="btn btn-rcpurple-light snooze" data-notif_type="modal">Snooze All <span></span></button>
+                                        <button class="btn btn-rcred dismiss_all">Dismiss All</button>
+                                        <button class="btn btn-rcpurple-light snooze">Snooze All <span></span></button>
                                     </div>
                                 </div>
                             </div>
                        </div>`;
-var banner_container    = `<div>
-                            <button type="button" class="py-2 close  hide_notifs" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+var banner_container    = `<div id="redcap_banner_notifs" class="redcap_notifs">
+                            <div class="banner-header">
+                                <h4>REDCap Notifications</h4>
+                                <button class="btn-s-xs btn-rcred dismiss_all">Dismiss All</button>
+                                <button class="btn-s-xs btn-rcpurple-light snooze">Snooze All <span></span></button>
+                            </div>
                             <div class="notif_cont_gen">
 
                             </div>
@@ -63,6 +67,10 @@ function RCNotifs(config) {
     this.loadNotifs();
 
     //KICK OFF POLL TO SHOW NOTIFS (IF NOT SNOOZED)
+    if(this.payload.client.dismissed.length){
+        //first time just call it , then interval 30 seconds there after
+        this.dismissNotifs();
+    }
     if(this.payload.server.updated){
         //first time just call it , then interval 30 seconds there after
         this.showNotifs();
@@ -136,7 +144,7 @@ RCNotifs.prototype.parseNotifs = function(data){
 }
 RCNotifs.prototype.isStale = function(){
     if(this.payload.server.updated){
-        var hours_since_last_updated = getDifferenceInHours(new Date(this.getServerOffsetTime()) , Date.now()) ;
+        var hours_since_last_updated = getDifferenceInHours(new Date(this.getOffsetTime(this.payload.server.updated)) , Date.now()) ;
         if(hours_since_last_updated < this.force_refresh){
             return false;
         }
@@ -149,29 +157,7 @@ RCNotifs.prototype.isStale = function(){
 RCNotifs.prototype.pollDismissNotifs = function(){
     var _this = this;
     setInterval(function() {
-        if(_this.payload.client.dismissed.length){
-            //TODO PASS ARRAY OF NOTIF DATA TO PASS ONCE TO dismiss CB
-            console.log("dismiss these", _this.payload.client.dismissed);
-            var data = {
-                "dismiss_notifs" : _this.payload.client.dismissed,
-                "redcap_csrf_token" : _this.redcap_csrf_token
-            }
-            $.ajax({
-                url: _this.dismiss_endpoint,
-                method: 'POST',
-                data: data,
-                dataType : 'JSON'
-            }).done(function (result) {
-                if(result){
-                    console.log("dismissNotif Sucess");
-                    _this.resolveDismissed(result);
-                }
-            }).fail(function (e) {
-                console.log("dismissNotif failed", e);
-            });
-        }else{
-            console.log("no notifs to dismiss yet");
-        }
+        _this.dismissNotifs()
     }, 30000); // 60 * 1000 milsec
 }
 RCNotifs.prototype.pollNotifsDisplay = function(){
@@ -238,10 +224,19 @@ RCNotifs.prototype.buildNotifs = function(){
     var all_notifs      = this.payload.notifs;
 
     var html_cont       = {};
-    html_cont["banner"] = $(banner_container).prop("id", "redcap_banner_notifs").addClass("redcap_notifs");
-    html_cont["modal"]  = $(modal_container).prop("id", "redcap_modal_notifs").addClass("redcap_notifs");
+    html_cont["banner"] = $(banner_container);
+    html_cont["modal"]  = $(modal_container);
 
     //Batch hide notifs containers FOR "snooze" or "one off hide"
+    html_cont["banner"].find(".dismiss_all").click(function(){
+        if(html_cont["banner"].find(".dismissable").length){
+            html_cont["banner"].find(".dismissable .notif_ftr button").each(function(){
+                if($(this).is(":visible")){
+                    $(this).trigger("click");
+                }
+            });
+        }
+    });
     html_cont["banner"].find(".hide_notifs").click(function(){
         _this.hideNotifs("banner");
     });
@@ -250,6 +245,15 @@ RCNotifs.prototype.buildNotifs = function(){
         _this.hideNotifs("banner");
     });
 
+    html_cont["modal"].find(".dismiss_all").click(function(){
+        if(html_cont["modal"].find(".dismissable").length){
+            html_cont["modal"].find(".dismissable .notif_ftr button").each(function(){
+                if($(this).is(":visible")){
+                    $(this).trigger("click");
+                }
+            });
+        }
+    });
     html_cont["modal"].find(".hide_notifs").click(function(){
         _this.hideNotifs("modal");
     });
@@ -262,10 +266,9 @@ RCNotifs.prototype.buildNotifs = function(){
         html_cont["banner"].find(".snooze span").text("for " + this.snooze_duration + " min.");
     }
 
-
     for(var i in all_notifs){
         var notif = new RCNotif(all_notifs[i], _this);
-        if(!notif.isDismissed()){
+        if(!notif.isDismissed() && !notif.isFuture()){
             html_cont[notif.getType()].find(".notif_cont_"+notif.getTarget()).append(notif.getJQUnit());
         }
     }
@@ -283,6 +286,30 @@ RCNotifs.prototype.buildNotifs = function(){
 RCNotifs.prototype.dismissNotif = function(data){
     this.payload.client.dismissed.push(data);
     localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
+}
+RCNotifs.prototype.dismissNotifs = function(){
+    if(this.payload.client.dismissed.length){
+        var _this = this;
+        var data = {
+            "dismiss_notifs" : this.payload.client.dismissed,
+            "redcap_csrf_token" : this.redcap_csrf_token
+        }
+        $.ajax({
+            url: this.dismiss_endpoint,
+            method: 'POST',
+            data: data,
+            dataType : 'JSON'
+        }).done(function (result) {
+            if(result){
+                console.log("dismissNotif Sucess");
+                _this.resolveDismissed(result);
+            }
+        }).fail(function (e) {
+            console.log("dismissNotif failed", e);
+        });
+    }else{
+        console.log("no notifs to dismiss yet");
+    }
 }
 RCNotifs.prototype.resolveDismissed = function(remove_notifs){
     var i = this.payload.client.dismissed.length
@@ -324,21 +351,20 @@ RCNotifs.prototype.calcSnoozeExpiration = function(){
     console.log("expiration time", Date.now(), expiration_time);
     return expiration_time;
 }
-RCNotifs.prototype.getServerOffsetTime = function(){
+RCNotifs.prototype.getOffsetTime = function(date_str){
     var client_offset = Date.now();
-    if(this.payload.server.updated && this.payload.client.offset_hours){
-        var server_ts           = new Date(this.payload.server.updated);
-        var client_offset_ts    = server_ts.getTime() + (parseInt(this.payload.client.offset_hours) * 60000 * 60);
+    if(date_str && this.payload.client.offset_hours){
+        var date_ts             = new Date(date_str);
+        var client_offset_ts    = date_ts.getTime() + (parseInt(this.payload.client.offset_hours) * 60000 * 60);
         client_offset           = new Date(client_offset_ts);
     }
-
     var date = client_offset.getFullYear() + '-' + (client_offset.getMonth()+1) + '-' + client_offset.getDate();
     var time = client_offset.getHours() + ":" + client_offset.getMinutes() + ":" + client_offset.getSeconds();
-    var server_date_time = date + ' ' + time;
+    var offset_date_time = date + ' ' + time;
 
     // console.log("offset server time in client context", server_date_time);
 
-    return server_date_time;
+    return offset_date_time;
 }
 
 //misc utility

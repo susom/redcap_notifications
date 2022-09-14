@@ -45,13 +45,6 @@ if(count($dismiss_notifs)){
         );
         $return_ids[] = $notif["record_id"];
     }
-    //$dismissData = array(
-    //    "record_id"                 => $newRecordId,
-    //    "note_record_id"            => filter_var($_POST['record_id'], FILTER_SANITIZE_STRING),
-    //    "note_name"                 => filter_var($_POST['note_name'], FILTER_SANITIZE_STRING),
-    //    "note_username"             => filter_var($_POST['note_username'], FILTER_SANITIZE_STRING),
-    //    "note_dismissal_datetime"   => $now
-    //);
 
     $results = REDCap::saveData($dismissalPid, 'json', json_encode($data));
     $module->emDebug("need to return the dismissed record_ids", $return_ids);

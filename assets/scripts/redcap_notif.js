@@ -29,7 +29,8 @@ notif_type["growler"]     = `<div class="alert">
 function RCNotif(notif, parent) {
     this.notif          = notif;
     this.parent         = parent;
-    this.isDismissed    = false;
+    this.dismissed      = false;
+    this.future         = false;
 
     this.domjq          = null;
     this.buildNotif();
@@ -66,7 +67,7 @@ RCNotif.prototype.getJQUnit = function(){
     return this.domjq;
 }
 RCNotif.prototype.dismissNotif = function(){
-    this.isDismissed = true;
+    this.dismissed = true;
 
     var data = {
         "record_id": this.notif.record_id,
@@ -85,8 +86,17 @@ RCNotif.prototype.dismissNotif = function(){
 RCNotif.prototype.isDimissable = function(){
     return this.notif.note_dismiss == "yes";
 }
-RCNotif.prototype.idDismissed = function(){
-    return this.isDismissed;
+RCNotif.prototype.isDismissed = function(){
+    return this.dismissed;
+}
+RCNotif.prototype.isFuture = function(){
+    var notif_start_str = this.notif["note_start_dt"];
+    var notif_start_ts  = new Date(this.parent.getOffsetTime(notif_start_str));
+    this.future         = notif_start_ts.getTime() > Date.now();
+    if(this.future){
+        console.log("future start date dont show yet");
+    }
+    return this.future;
 }
 RCNotif.prototype.displayOnPage = function(cur_page){
     return this.notif.hasOwnProperty(["note_display___" + cur_page]) && this.notif["note_display___" + cur_page] == "1";

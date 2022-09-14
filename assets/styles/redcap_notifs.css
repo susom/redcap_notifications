@@ -25,10 +25,22 @@
 #redcap_banner_notifs{
     width:100%;
     max-width:800px;
-}
-#redcap_modal_notifs{
 
 }
+
+#redcap_banner_notifs .banner-header{
+    margin-bottom:8px;
+    text-align:right;
+}
+#redcap_banner_notifs .banner-header h4{
+    font-size: 140%;
+    float:left;
+}
+#redcap_modal_notifs {
+    top:50%;
+    transform: translateY(-25%);
+}
+
 #redcap_modal_notifs .hide_notifs{
     position: absolute;
     top: 20px;
@@ -38,6 +50,8 @@
 .redcap_notifs .alert{
     position:relative !important;
     padding:10px;
+    border:none;
+    box-shadow: 0 0 2px 0px #333;
 }
 .redcap_notifs .alert .notif_hdr{
     position:absolute;
