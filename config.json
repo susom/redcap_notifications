@@ -59,6 +59,18 @@
 
 
 	"system-settings": [
+        {
+            "key": "redcap-notifs-snooze-minutes",
+            "name": "Time in <b>minutes</b> that the snooze will hide REDCap Notifs",
+            "required": false,
+            "type": "text"
+        },
+        {
+            "key": "redcap-notifs-refresh-limit",
+            "name": "Time in <b>hours</b> before forcing a notification payload refresh",
+            "required": false,
+            "type": "text"
+        },
 		{
 			"key": "enable-system-debug-logging",
 			"name": "<b>Enable Debug Logging (system-wide)</b><i>(optional)</i> Requires installation and configuration of emLogger",

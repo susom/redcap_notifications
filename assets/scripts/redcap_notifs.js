@@ -1,56 +1,85 @@
-var modal_container = `<div class="modal fade show" id="external-modules-configure-modal" name="external-modules-configure-modal" data-module="" tabindex="-1" data-toggle="modal" data-backdrop="static" data-keyboard="true" style="display: block;" aria-modal="true" role="dialog">
+var modal_container     = `<div class="modal"  style="display: block;" >
                             <div class="modal-dialog" role="document" style="max-width: 950px !important;">
                                 <div class="modal-content">
                                     <div class="modal-header py-2">
-                                        <button type="button" class="py-2 close closeCustomModal hide_notifs" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+                                        <button type="button" class="py-2 close  hide_notifs" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
                                         <h4 id="add-edit-title-text" class="modal-title form-control-custom">REDCap Notifications</h4>
                                     </div>
                                     <div class="modal-body pt-2">
                                         <div id="errMsgContainerModal" class="alert alert-danger col-md-12" role="alert" style="display:none;margin-bottom:20px;"></div>
                                         <div class="mb-2">These notifications can be dismissed or 'snoozed'.  But should not be ignored.</div>
-                                        <div class="notif_cont"></div>
+                                        <div class="notif_cont_gen">
+
+                                        </div>
+                                        <div class="notif_cont_proj">
+
+                                        </div>
                                     </div>
                                     <div class="modal-footer">
-                                        <button data-toggle="modal" class="btn btn-rcgreen" id="btnModalsaveAlert" onclick="return false;">Save</button>
-                                        <button class="btn btn-defaultrc" id="btnCloseCodesModal" data-dismiss="modal" onclick="return false;">Cancel</button>
+                                        <button data-toggle="modal" class="btn btn-rcred dismiss_all">Dismiss All</button>
+                                        <button class="btn btn-rcpurple-light snooze" data-notif_type="modal">Snooze All <span></span></button>
                                     </div>
                                 </div>
                             </div>
                        </div>`;
+var banner_container    = `<div>
+                            <button type="button" class="py-2 close  hide_notifs" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">×</span></button>
+                            <div class="notif_cont_gen">
 
-function RCNotifs(cur_user, refresh_endpoint, dismiss_endpoint, redcap_csrf_token) {
-    this.notifs             = null;
-    this.notif_html         = "";
-    this.user               = cur_user;
-    this.refresh_endpoint   = refresh_endpoint;
-    this.dismiss_endpoint   = dismiss_endpoint;
-    this.redcap_csrf_token  = redcap_csrf_token;
-    this.banner_jq          = null;
-    this.modal_jq           = null;
-    this.notifStatus        = null;
-    this.lastUpdated        = null;
-    this.request_update     = null;
+                            </div>
+                            <div class="notif_cont_proj">
 
+                            </div>
+                        </div>`;
+
+function RCNotifs(config) {
     //read storage value
-    this.redcap_notif_storage_key = "redcapNotifications";
+    this.redcap_notif_storage_key   = "redcapNotifications";
+    this.user                       = config.current_user;
+    this.refresh_endpoint           = config.refresh_notifs_endpoint;
+    this.dismiss_endpoint           = config.dismiss_notifs_endpoint;
+    this.redcap_csrf_token          = config.redcap_csrf_token;
+    this.snooze_duration            = config.snooze_duration;
+    this.force_refresh              = config.force_refresh;
+    this.page                       = config.current_page;
 
-    //show notifs
-    this.showNotifs();
-}
-
-RCNotifs.prototype.loadNotifs = function(){
-    var _ajax_ep    = this.refresh_endpoint;
-
-    var data        = {
-         "last_updated" : this.last_updated
-        ,"redcap_csrf_token": this.redcap_csrf_token
+    //default empty "payload"
+    this.payload = {
+         "server"   : {"updated" : null }
+        ,"client"   : {
+             "downloaded" : null
+            ,"offset_hours" : null
+            ,"dismissed" : []
+            ,"request_update" : null
+         }
+        ,"notifs" : []
+        ,"snooze_expire" : {"banner" : null, "modal" :null }
     };
 
-    if(1==2){
-        //TODO FIGURE OUT FLOW FOR SPECIFIC NOTIF TYPE REFRESH
-        var notif_type = null;
-        data["proj_or_sys"] = notif_type;
+    this.banner_jq          = null;
+    this.modal_jq           = null;
+
+    //load and parse notifs
+    this.loadNotifs();
+
+    //KICK OFF POLL TO SHOW NOTIFS (IF NOT SNOOZED)
+    if(this.payload.server.updated){
+        //first time just call it , then interval 30 seconds there after
+        this.showNotifs();
     }
+
+    this.pollNotifsDisplay();
+    this.pollDismissNotifs();
+}
+
+//notification payload
+RCNotifs.prototype.refreshFromServer = function(notif_type){
+    var _ajax_ep    = this.refresh_endpoint;
+    var data        = {
+         "last_updated"     : this.server_time
+        ,"redcap_csrf_token": this.redcap_csrf_token
+        ,"proj_or_sys" : notif_type ?? null
+    };
 
     return new Promise(function(resolve, reject) {
         $.ajax({
@@ -66,193 +95,253 @@ RCNotifs.prototype.loadNotifs = function(){
         });
     });
 }
-RCNotifs.prototype.parseNotifs = function(data){
-    var client_date_time    = getClientDateTime();
-    var client_offset       = getDifferenceInHours( new Date(data["server_time"]) , new Date(client_date_time)) + "h";
-
-    var notif_payload = {
-        "server" : data["server_time"]
-        ,"client" : {
-            "client_time_downloaded": client_date_time,
-            "calc_offset": client_offset,
-            "dismssed_timestamp": [],
-            "recorded_on_server": false,
-            "request_update": false
-        }
-        ,"notifications" : data["notifs"]
-    };
-    /*
-    this.notifs = {
-         "server": { "server_time_generated": "2022-09-04 12:13:13" }
-        ,"client": {
-            "client_time_downloaded": "2022-09-04 16:13:13",
-            "calc_offset": "4h",
-            "dismssed_timestamp": [
-                    {
-                        "notification": "2",
-                        "dismissed_at": "9/2/1 12:12:12"
-                    }
-                ],
-            "recorded_on_server": false,
-            "request_update": true
-         }
-        ,"notifications" : [
-            {
-                "record_id" : 2
-                ,"note_project_id" : "xxx"
-                ,"note_name" : "Test General Notif"
-                ,"note_type" : "banner"
-                ,"note_start_dt" : "2022-09-06 07:41:24"
-                ,"client_start_dt" : "+ 4 huors"
-                ,"expires_at" : "xxxxxxxx"
-                ,"note_end_dt" : "2022-09-15 07:41:40"
-                ,"note_creator" : "irvins"
-                ,"note_subject" : "TEST GEN"
-                ,"note_message" : "Hey stupid, this is a general notifcation and no you"
-                ,"note_alert_status" : "info"
-                ,"note_dismiss" : "no"
-                ,"note_display___system" : 1
-                ,"note_display___project" : 1
-                ,"note_display___survey" : 1
-                ,"note_icon" : null
-            }
-        ]
-    }
-    */
-
-    for(var i in data["notifs"]){
-        var one_notif = data["notifs"][i];
-    }
-
-    this.notifs = notif_payload;
-    localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.notifs));
-}
-
-RCNotifs.prototype.getNotifs = function(){
-    var _this           = this;
-    var notif_payload   = null;
-    if(typeof(Storage) !== "undefined" && localStorage.getItem(this.redcap_notif_storage_key)){
+RCNotifs.prototype.loadNotifs = function(){
+    if(localStorage.getItem(this.redcap_notif_storage_key)){
         //IF localstorage, AND localstorage has Notif DATA with key
-        notif_payload = JSON.parse(localStorage.getItem(this.redcap_notif_storage_key));
-
-        //TODO system settings WHEN to DO a FULL update (based on time delta? )
+        this.payload = JSON.parse(localStorage.getItem(this.redcap_notif_storage_key));
     }
 
-    if(!notif_payload || (notif_payload && notif_payload.hasOwnProperty("client") && notif_payload["client"]["request_update"])){
-        //IF no payload, or if there is a payload and it says to refresh
-        this.loadNotifs().then(function(data) {
+    if( this.isStale() ){
+        //TODO system settings WHEN to DO a FULL update (based on time delta? )
+        var _this = this;
+        this.refreshFromServer().then(function(data) {
             // SUCCESFUL, parse Notifs and store in this.notif
             var response = decode_object(data);
             _this.parseNotifs(response);
-        }).then(function(){
-            //once set can continue to showNotifs
-            _this.showNotifs();
         }).catch(function(err) {
             // Run this when promise was rejected via reject()
             console.log("Error loading notifs, do nothing they just wont see the notifs this time",err)
         });
-    }else{
-        this.notifs = notif_payload;
-        return this.notifs;
     }
 
-    // ajax: "#2 dispmeed at xx." => success: ts of notification project last updated => remove from local store?
-    // if last_update_time > server_time_generated, "request update"...
+    return;
 }
-RCNotifs.prototype.showNotifs = function(){
-    var notifs = this.getNotifs();
+RCNotifs.prototype.parseNotifs = function(data){
+    var client_date_time    = getClientDateTime();
+    var client_offset       = getDifferenceInHours( new Date(data["server_time"]) , new Date(client_date_time)) + "h";
 
-    if(!notifs){
-        //TODO GOTTA BE BETTER WAY TO DO THIS? BUT THIS WORKS!
-        // console.log("no notifs yet");
+    this.payload = {
+        "server"   : {"updated" : data["server_time"] }
+        ,"client"   : {
+            "downloaded" : client_date_time
+            ,"offset_hours" : client_offset
+            ,"dismissed" : []
+            ,"request_update" : null
+        }
+        ,"notifs" : data["notifs"]
+        ,"snooze_expire" : {"banner" : null, "modal" :null }
+    };
+    console.log("fresh load from server", this.payload);
+    localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
+}
+RCNotifs.prototype.isStale = function(){
+    if(this.payload.server.updated){
+        var hours_since_last_updated = getDifferenceInHours(new Date(this.getServerOffsetTime()) , Date.now()) ;
+        if(hours_since_last_updated < this.force_refresh){
+            return false;
+        }
+    }
+    console.log("isStale() " + hours_since_last_updated +  " hours since last updated" );
+    return true;
+}
+
+//polling during page session
+RCNotifs.prototype.pollDismissNotifs = function(){
+    var _this = this;
+    setInterval(function() {
+        if(_this.payload.client.dismissed.length){
+            //TODO PASS ARRAY OF NOTIF DATA TO PASS ONCE TO dismiss CB
+            console.log("dismiss these", _this.payload.client.dismissed);
+            var data = {
+                "dismiss_notifs" : _this.payload.client.dismissed,
+                "redcap_csrf_token" : _this.redcap_csrf_token
+            }
+            $.ajax({
+                url: _this.dismiss_endpoint,
+                method: 'POST',
+                data: data,
+                dataType : 'JSON'
+            }).done(function (result) {
+                if(result){
+                    console.log("dismissNotif Sucess");
+                    _this.resolveDismissed(result);
+                }
+            }).fail(function (e) {
+                console.log("dismissNotif failed", e);
+            });
+        }else{
+            console.log("no notifs to dismiss yet");
+        }
+    }, 30000); // 60 * 1000 milsec
+}
+RCNotifs.prototype.pollNotifsDisplay = function(){
+    var _this = this;
+    setInterval(function() {
+        if(_this.isStale()) {
+            _this.loadNotifs();
+        }else if(_this.payload.server.updated){
+            _this.showNotifs();
+        }else{
+            console.log("no payload to display yet");
+        }
+    }, 30000); // 60 * 1000 milsec
+}
+
+//UI display and behavior
+RCNotifs.prototype.showNotifs = function(){
+    //Check against the snoozed notifs
+    //Also check against FUTURE start time stamps
+    var notifs = this.payload.notifs;
+
+    if(!notifs.length){
         return;
     }
 
     //build notifs
-    if(notifs["notifications"].length && (!this.banner_jq && !this.modal_jq)){
+    if((!this.banner_jq || !this.modal_jq)){
         this.buildNotifs();
     }
 
-
-
-    if(this.banner_jq.find(".alert").length){
-        if($("#subheader").length){
+    if(!this.isSnoozed("banner") && this.banner_jq.find(".alert").length){
+        if(!$("#redcap_banner_notifs").length && $("#subheader").length){
             $("#subheader").after(this.banner_jq);
         }
     }
-    if(!($("#redcap_modal_notifs").length)){
-        if(this.modal_jq.find(".alert").length){
-            var opaque  = $("<div>").prop("id","redcap_notifs_blocker");
-            $("body").append(opaque).append(this.modal_jq);
+
+    if(!this.isSnoozed("modal") && this.modal_jq.find(".alert").length){
+        var opaque  = $("<div>").prop("id","redcap_notifs_blocker");
+
+        if(!$("#redcap_notifs_blocker").length){
+            $("body").append(opaque).append(this.modal_jq);;
         }
-    }else{
-        this.modal_jq.find(".notif_cont").removeClass("hide");
+    }
+}
+RCNotifs.prototype.hideNotifs = function(notif_type){
+    var _this = this;
+    if(notif_type == "modal"){
+        $("#redcap_notifs_blocker").fadeOut("fast", function(){
+            $(this).remove();
+            _this.modal_jq.addClass("hide");
+            _this.modal_jq.remove();
+            _this.modal_jq = null;
+        });
     }
 
+    if(notif_type == "banner"){
+        this.banner_jq.addClass("hide");
+        this.banner_jq.remove();
+        this.banner_jq = null;
+    }
 }
 RCNotifs.prototype.buildNotifs = function(){
     var _this           = this;
-    var notifs          = _this.getNotifs();
-    var all_notifs      = notifs["notifications"];
+    var all_notifs      = this.payload.notifs;
 
     var html_cont       = {};
-    html_cont["banner"] = $("<div>").prop("id", "redcap_banner_notifs").addClass("redcap_notifs").append($("<div>").addClass("hide_notifs")).append($("<div>").addClass("notif_cont"));
+    html_cont["banner"] = $(banner_container).prop("id", "redcap_banner_notifs").addClass("redcap_notifs");
     html_cont["modal"]  = $(modal_container).prop("id", "redcap_modal_notifs").addClass("redcap_notifs");
 
-    html_cont["modal"].find(".hide_notifs").click(function(){
-        if($(this).hasClass("show")){
-            $(this).removeClass("show");
-            _this.showNotifs();
-        }else{
-            $(this).addClass("show");
-            _this.hideNotifs();
-        }
+    //Batch hide notifs containers FOR "snooze" or "one off hide"
+    html_cont["banner"].find(".hide_notifs").click(function(){
+        _this.hideNotifs("banner");
+    });
+    html_cont["banner"].find(".snooze").click(function(){
+        _this.snoozeNotifs("banner");
+        _this.hideNotifs("banner");
     });
 
-    //TODO ORDER BY GEN then Proj , Non-Dismissable then Dismissables
-    var notif_order     = ["gen", "proj"];
+    html_cont["modal"].find(".hide_notifs").click(function(){
+        _this.hideNotifs("modal");
+    });
+    html_cont["modal"].find(".snooze").click(function(){
+        _this.snoozeNotifs("modal");
+        _this.hideNotifs("modal");
+    });
+    if(this.snooze_duration){
+        html_cont["modal"].find(".snooze span").text("for " + this.snooze_duration + " min.");
+        html_cont["banner"].find(".snooze span").text("for " + this.snooze_duration + " min.");
+    }
+
 
     for(var i in all_notifs){
         var notif = new RCNotif(all_notifs[i], _this);
-        html_cont[all_notifs[i]["note_type"]].find(".notif_cont").append(notif.getJQUnit());
+        if(!notif.isDismissed()){
+            html_cont[notif.getType()].find(".notif_cont_"+notif.getTarget()).append(notif.getJQUnit());
+        }
     }
 
     for(var notif_style in html_cont){
         if(html_cont[notif_style].find(".alert").length){
             if(notif_style == "banner"){
-                this.banner_jq = html_cont[notif_style];
+                this.banner_jq  = html_cont[notif_style];
             }else{
-                this.modal_jq = html_cont[notif_style];
+                this.modal_jq   = html_cont[notif_style];
             }
         }
     }
 }
-RCNotifs.prototype.hideNotifs = function(){
-    //build notifs
-    //TODO extract to properties
-
-    $("#redcap_notifs_blocker").fadeOut("fast", function(){
-        $(this).remove();
-    });
-    this.modal_jq.find(".notif_cont").addClass("hide");
+RCNotifs.prototype.dismissNotif = function(data){
+    this.payload.client.dismissed.push(data);
+    localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
 }
-
-RCNotifs.prototype.checkNotifStatus = function(){
-    if (typeof(Storage) !== "undefined" && !this.notifStatus) {
-        if(sessionStorage.getItem("redcapNotifsStatus")){
-            this.notifStatus = JSON.parse(sessionStorage.getItem("redcapNotifsStatus"));
+RCNotifs.prototype.resolveDismissed = function(remove_notifs){
+    var i = this.payload.client.dismissed.length
+    while (i--) {
+        if ($.inArray(this.payload.client.dismissed[i]["record_id"], remove_notifs) > -1) {
+            this.payload.client.dismissed.splice(i, 1);
+            localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
         }
     }
 
-    return this.notifStatus;
-}
-RCNotifs.prototype.setNotifStatus = function(){
-    if (typeof(Storage) !== "undefined") {
-        sessionStorage.setItem("redcapNotifsStatus",JSON.stringify(this.notifStatus));
+    var i = this.payload.notifs.length
+    while (i--) {
+        if ($.inArray(this.payload.notifs[i]["record_id"], remove_notifs) > -1) {
+            this.payload.notifs.splice(i, 1);
+            localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
+        }
     }
 }
 
-//utility
+//Snoozing utils
+RCNotifs.prototype.snoozeNotifs = function(notif_type){
+    var snooze_expire = this.calcSnoozeExpiration();
+    this.payload.snooze_expire[notif_type] = snooze_expire;
+    localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
+    console.log("snoozing", notif_type,  this.payload.snooze_expire);
+}
+RCNotifs.prototype.isSnoozed = function(notif_type){
+    var calc = Date.now() - this.payload.snooze_expire[notif_type];
+    if(this.payload.snooze_expire[notif_type] && calc < 0){
+        console.log(notif_type + " notifs should be snoozed for another " , Math.abs(calc)/60000 , "minutes");
+        return true;
+    }else{
+        // console.log(notif_type, this.payload.snooze_expire[notif_type], calc, "expire is past or it is null") ;
+        return false;
+    }
+}
+RCNotifs.prototype.calcSnoozeExpiration = function(){
+    var expiration_time = Date.now() + (this.snooze_duration*60000);
+    console.log("expiration time", Date.now(), expiration_time);
+    return expiration_time;
+}
+RCNotifs.prototype.getServerOffsetTime = function(){
+    var client_offset = Date.now();
+    if(this.payload.server.updated && this.payload.client.offset_hours){
+        var server_ts           = new Date(this.payload.server.updated);
+        var client_offset_ts    = server_ts.getTime() + (parseInt(this.payload.client.offset_hours) * 60000 * 60);
+        client_offset           = new Date(client_offset_ts);
+    }
+
+    var date = client_offset.getFullYear() + '-' + (client_offset.getMonth()+1) + '-' + client_offset.getDate();
+    var time = client_offset.getHours() + ":" + client_offset.getMinutes() + ":" + client_offset.getSeconds();
+    var server_date_time = date + ' ' + time;
+
+    // console.log("offset server time in client context", server_date_time);
+
+    return server_date_time;
+}
+
+//misc utility
 function readCookie(cookie_name){
     var cookie_dough    = $.cookie(cookie_name);
     var cookies         = this.isJsonString(cookie_dough) ? JSON.parse(cookie_dough) : {};
@@ -267,6 +356,7 @@ function isJsonString(str) {
     }
     return true;
 }
+
 function getClientDateTime(){
     var today = new Date();
     var date = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
@@ -278,6 +368,7 @@ function getDifferenceInHours(date1, date2) {
     const diffInMs = date2 - date1;
     return round(diffInMs / (1000 * 60 * 60));
 }
+
 function decode_object(obj) {
     try {
         // parse text to json object
@@ -308,3 +399,5 @@ function decode_string(input) {
     txt.innerHTML = input;
     return txt.value;
 }
+
+

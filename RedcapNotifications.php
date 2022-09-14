@@ -330,6 +330,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $notifs_js      = $this->getUrl("assets/scripts/redcap_notifs.js");
         $notif_js       = $this->getUrl("assets/scripts/redcap_notif.js");
         $cur_user       = $this->getUser()->getUsername();
+        $snooze_duration    = $this->getSystemSetting("redcap-notifs-snooze-minutes") ?? 3;
+        $force_refresh      = $this->getSystemSetting("redcap-notifs-refresh-limit") ?? 24;
         ?>
         <link rel="stylesheet" href="<?= $notif_css ?>">
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js" integrity="sha512-3j3VU6WC5rPQB4Ld1jnLV7Kd5xr+cq9avvhwqzbH/taCRNURoeEpoPBK9pDyeukwSxwRPJ8fDgvYXd6SkaZ2TA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -339,9 +341,21 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
             var dismissal_cb        = "<?=$dismissal_cb?>";
             var refresh_notifs      = "<?=$refresh_notifs?>";
             var cur_user            = "<?=$cur_user?>";
+            var cur_page            = "<?=PAGE?>";
             var redcap_csrf_token   = "<?=$this->getCSRFToken()?>";
+            var snooze_duration     = "<?=$snooze_duration?>";
+            var force_refresh       = "<?=$force_refresh?>";
             $(window).on('load', function () {
-                var rc_notifs = new RCNotifs(cur_user, refresh_notifs, dismissal_cb, redcap_csrf_token);
+                var notifs_config = {
+                    "current_user" : cur_user,
+                    "refresh_notifs_endpoint" : refresh_notifs,
+                    "dismiss_notifs_endpoint" : dismissal_cb,
+                    "redcap_csrf_token" : redcap_csrf_token,
+                    "snooze_duration" : snooze_duration,
+                    "force_refresh" : force_refresh,
+                    "current_page" : cur_page
+                }
+                var rc_notifs = new RCNotifs(notifs_config);
             });
         </script>
         <?php

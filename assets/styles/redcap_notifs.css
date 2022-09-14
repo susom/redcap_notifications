@@ -4,6 +4,7 @@
     height: 100%; /* Full height (cover the whole page) */
     top: 0; left: 0; right: 0; bottom: 0;
     border:1px transparent #fff;
+    z-index:1032;
 }
 #redcap_notifs_blocker:before{
     content:"";
@@ -25,52 +26,15 @@
     width:100%;
     max-width:800px;
 }
+#redcap_modal_notifs{
 
-#redcap_modal_notifs {
-    position:fixed;
-    top:10%; right:0;
-    width:20vw;
-    min-width:240px; max-width:320px;
-    max-height:80vh;
-    padding-right:10px;
 }
-
-#redcap_modal_notifs .notif_cont {
-    position: absolute;
-    padding-right: 10px;
-    left : 0;
-    transition: left .5s ease-in-out;
-    -webkit-transition: left .5s ease-in-out;
-}
-#redcap_modal_notifs .notif_cont.hide{
-    left : 50px;
-}
-
 #redcap_modal_notifs .hide_notifs{
-    position:relative;
-    height:30px;
-}
-#redcap_modal_notifs .hide_notifs:after{
-    content: "hide";
     position: absolute;
-    right: 0;
-    padding: 3px 10px;
-    text-align: center;
-    background: orange;
-    border-radius: 3px;
-    cursor: pointer;
-    color: #fff;
-    font-size: 77%;
-}
-#redcap_modal_notifs .hide_notifs.show:after{
-    content: "show";
-    background: lightskyblue;
+    top: 20px;
+    right: 20px;
 }
 
-#redcap_modal_notifs .alert {
-    position:initial; height:initial;
-    display:block;
-}
 .redcap_notifs .alert{
     position:relative !important;
     padding:10px;
@@ -95,7 +59,7 @@
 .redcap_notifs .alert .notif_bdy .lead{
     font-size:92%;
 }
-.redcap_notifs  .alert .notif_ftr{
+.redcap_notifs .alert .notif_ftr{
     display:none;
     position:absolute;
     top:10px; right:10px;
@@ -118,3 +82,47 @@
 }
 
 
+/*
+growler style
+
+#redcap_growler_notifs {
+    position:fixed;
+    top:10%; right:0;
+    width:20vw;
+    min-width:240px; max-width:320px;
+    max-height:80vh;
+    padding-right:10px;
+}
+#redcap_growler_notifs .notif_cont {
+    position: absolute;
+    padding-right: 10px;
+    left : 0;
+    transition: left .5s ease-in-out;
+    -webkit-transition: left .5s ease-in-out;
+}
+#redcap_growler_notifs .notif_cont.hide{
+    left : 50px;
+}
+
+#redcap_growler_notifs .hide_notifs:after{
+    content: "hide";
+    position: absolute;
+    right: 0;
+    padding: 3px 10px;
+    text-align: center;
+    background: orange;
+    border-radius: 3px;
+    cursor: pointer;
+    color: #fff;
+    font-size: 77%;
+}
+#redcap_growler_notifs .hide_notifs.show:after{
+    content: "show";
+    background: lightskyblue;
+}
+#redcap_growler_notifs .alert {
+    position:initial; height:initial;
+    display:block;
+}
+
+*/
