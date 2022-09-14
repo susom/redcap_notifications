@@ -268,7 +268,7 @@ RCNotifs.prototype.buildNotifs = function(){
 
     for(var i in all_notifs){
         var notif = new RCNotif(all_notifs[i], _this);
-        if(!notif.isDismissed() && !notif.isFuture()){
+        if(!notif.isDismissed() && !notif.isFuture() && !notif.isExpired()){
             html_cont[notif.getType()].find(".notif_cont_"+notif.getTarget()).append(notif.getJQUnit());
         }
     }

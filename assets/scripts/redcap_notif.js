@@ -31,6 +31,7 @@ function RCNotif(notif, parent) {
     this.parent         = parent;
     this.dismissed      = false;
     this.future         = false;
+    this.expired        = false;
 
     this.domjq          = null;
     this.buildNotif();
@@ -97,6 +98,15 @@ RCNotif.prototype.isFuture = function(){
         console.log("future start date dont show yet");
     }
     return this.future;
+}
+RCNotif.prototype.isExpired = function(){
+    var notif_end_str = this.notif["note_end_dt"];
+    var notif_end_ts  = new Date(this.parent.getOffsetTime(notif_end_str));
+    this.expired         = notif_end_ts.getTime() < Date.now();
+    if(this.expired){
+        console.log("this is expired, it should clear out next refresh , for now , do not show it");
+    }
+    return this.expired;
 }
 RCNotif.prototype.displayOnPage = function(cur_page){
     return this.notif.hasOwnProperty(["note_display___" + cur_page]) && this.notif["note_display___" + cur_page] == "1";
