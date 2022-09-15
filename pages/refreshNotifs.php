@@ -21,7 +21,7 @@ try {
     $result             = json_encode($all_notifications, JSON_THROW_ON_ERROR);
     echo htmlentities($result, ENT_QUOTES);
 } catch (\Exception $e) {
-    Entities::createException($e->getMessage());
+    //Entities::createException($e->getMessage());
     header("Content-type: application/json");
     http_response_code(404);
     $result = json_encode(array('status' => 'error', 'message' => $e->getMessage()), JSON_THROW_ON_ERROR);

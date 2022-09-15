@@ -188,7 +188,8 @@ RCNotifs.prototype.showNotifs = function(){
         this.buildNotifs();
     }
 
-    if(!this.isSnoozed("banner") && this.banner_jq.find(".alert").length){
+    // LY - adding check for this.banner_jq is not null otherwise .length bombs
+    if(!this.isSnoozed("banner") && this.banner_jq && this.banner_jq.find(".alert").length){
         if(!$("#redcap_banner_notifs").length && $("#subheader").length){
             $("#subheader").after(this.banner_jq);
         }
