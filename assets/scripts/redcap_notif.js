@@ -1,7 +1,7 @@
 //NOTIF TEMPLATES
 var notif_type = {};
 
-notif_type["banner"]    = `<div class="alert">
+notif_type["banner"]    = `<div class="notif alert ban">
                                 <div class="notif_hdr"></div>
                                 <div class="notif_bdy">
                                     <h3 class="headline"></h3>
@@ -9,7 +9,8 @@ notif_type["banner"]    = `<div class="alert">
                                 </div>
                                 <div class="notif_ftr"><button>Dismiss</button></div>
                             </div>`;
-notif_type["modal"]     = `<div class="alert">
+
+notif_type["modal"]     = `<div class="notif alert mod">
                                 <div class="notif_hdr"></div>
                                 <div class="notif_bdy">
                                     <h3 class="headline"></h3>
@@ -17,7 +18,9 @@ notif_type["modal"]     = `<div class="alert">
                                 </div>
                                 <div class="notif_ftr"><button>Dismiss</button></div>
                            </div>`;
-notif_type["growler"]     = `<div class="alert">
+
+//TODO MODAL LOOKS BETTER AFTER ALL I THINK
+notif_type["growler"]     = `<div class="notif alert growl">
                                 <div class="notif_hdr"></div>
                                 <div class="notif_bdy">
                                     <h3 class="headline"></h3>
@@ -25,6 +28,11 @@ notif_type["growler"]     = `<div class="alert">
                                 </div>
                                 <div class="notif_ftr"><button>Dismiss</button></div>
                            </div>`;
+
+var default_icon = {}
+default_icon["info"]    = `<i class="fas fa-info-circle"></i>`
+default_icon["warning"] = `<i class="fas fa-exclamation-triangle"></i>`
+default_icon["danger"]  = `<i class="fas fa-skull-crossbones"></i>`
 
 function RCNotif(notif, parent) {
     this.notif          = notif;
@@ -59,7 +67,19 @@ RCNotif.prototype.buildNotif = function(){
     }
 
     if(this.getCustomIcon() !== ""){
-        console.log("custom icon, put in notif");
+        notif_jq.find(".notif_bdy").attr("style", "background-image:url("+this.getCustomIcon()+");").addClass("has_icon");
+    }else{
+        switch(this.getAlertStatus()){
+            case "info":
+                notif_jq.find(".notif_bdy").prepend($(default_icon["info"])).addClass("has_icon");
+                break;
+            case "warning":
+                notif_jq.find(".notif_bdy").prepend($(default_icon["warning"])).addClass("has_icon");
+                break;
+            case "danger":
+                notif_jq.find(".notif_bdy").prepend($(default_icon["danger"])).addClass("has_icon");
+                break;
+        }
     }
 
     this.domjq = notif_jq;
@@ -68,7 +88,7 @@ RCNotif.prototype.getJQUnit = function(){
     return this.domjq;
 }
 RCNotif.prototype.dismissNotif = function(){
-    this.dismissed = true;
+    this.setDismissed();
 
     var data = {
         "record_id": this.notif.record_id,
@@ -108,8 +128,30 @@ RCNotif.prototype.isExpired = function(){
     }
     return this.expired;
 }
-RCNotif.prototype.displayOnPage = function(cur_page){
-    return this.notif.hasOwnProperty(["note_display___" + cur_page]) && this.notif["note_display___" + cur_page] == "1";
+RCNotif.prototype.displayOnPage = function(){
+    const queryString   = window.location.search;
+    const urlParams     = new URLSearchParams(queryString);
+
+    //NEED TO CHECK CURRENT PAGE CONTEXT TO DETERMINE IF NOTIFS SHOULD DISPLAY (PROJECT, SURVEY, or SYSTEM)
+    if( this.isProjectNotif() && urlParams.has('pid') && ( urlParams.get("pid") == this.getProjId() || this.getProjId() == "")  ){
+        // console.log("is project notif, this is project page, pid match OR pid empty", this.getProjId());
+        return true;
+    }else if( this.isSurveyNotif() && this.parent.getCurPage() == "surveys/index.php" ){
+        const global_var_pid = pid; //UGH
+        if(this.getProjId() == global_var_pid){
+            // console.log("is survey notif, this is survey page,  pid match ONLY", this.getProjId());
+            return true;
+        }
+    }else if( this.isSystemNotif() && !urlParams.has('pid') ){
+        // console.log("is a system notif, is not a project or survey page, url has no 'PID' ");
+        return true;
+    }
+
+    // console.log("no notifs for this page", this.getRecordId(), this.getTarget(), this.isSurveyNotif());
+    return false;
+}
+RCNotif.prototype.setDismissed = function(){
+    this.dismissed = true;
 }
 
 //get notif properties
@@ -147,7 +189,23 @@ RCNotif.prototype.getCustomIcon = function(){
     return this.notif.note_icon;
 }
 RCNotif.prototype.getTarget = function(){
-    return this.notif.note_target;
+    var note_target = "system";
+    if(this.notif.note_display___project == "1"){
+        note_target = "project";
+    }else if(this.notif.note_display___survey == "1"){
+        note_target = "survey";
+    }
+
+    return note_target;
 }
 
-
+//shortCut Flags
+RCNotif.prototype.isProjectNotif = function(){
+    return this.getTarget() == "project";
+}
+RCNotif.prototype.isSystemNotif  = function(){
+    return this.getTarget() == "system";
+}
+RCNotif.prototype.isSurveyNotif  = function(){
+    return this.getTarget() == "survey";
+}

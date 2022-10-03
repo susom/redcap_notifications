@@ -12,6 +12,9 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 
     use emLoggerTrait;
 
+    const DEFAULT_NOTIF_SNOOZE_TIME_MIN     = 5;
+    const DEFAULT_NOTIF_REFRESH_TIME_HOUR   = 6;
+
     public function __construct() {
 		parent::__construct();
 	}
@@ -227,10 +230,10 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @return array
      */
     private function getSystemNotifications($notification_pid, $now, $dcProjects, $proj_admin, $dismissed, $since_last_update)  {
-
+        //TODO WHAT WRONG WITH SYNTAX ADDING "OR [note_end_dt] == ''" ????
         // We are first pulling 'general' notifications that are not project dependant
         $filter = "([note_project_id] = '') and ([note_end_dt] > '" . $now . "')" .
-                    " and ([notifications_complete] = '2')";
+                    " and ([notifications_complete] = '2' || true)";
         if (!empty($since_last_update)) {
             $filter .= " and ([note_last_update_time] > '" . $since_last_update . "')";
         }
@@ -285,9 +288,9 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @return array
      */
     private function getProjectNotifications($notification_pid, $now, $allProjectslists, $dcProjects, $projAdminProjects, $dismissed, $since_last_update) {
-
+        //TODO WHAT WRONG WITH SYNTAX ADDING "OR [note_end_dt] == ''" ????
         // Now check for project level notifications that are active and we are a member
-        $filter = "([note_project_id] <> '') and ([note_end_dt] > '" . $now . "') and ([notifications_complete] = '2') ";
+        $filter = "([note_project_id] <> '') and ([note_end_dt] > '" . $now . "') and ([notifications_complete] = '2' || true) ";
         if (!empty($since_last_update)) {
             $filter .= " and ([note_last_update_time] > '" . $since_last_update . "') ";
         }
@@ -329,7 +332,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
                 }
             }
         }
-
         return $projNotifications;
     }
 
@@ -368,8 +370,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $notifs_js      = $this->getUrl("assets/scripts/redcap_notifs.js");
         $notif_js       = $this->getUrl("assets/scripts/redcap_notif.js");
         $cur_user       = $this->getUser()->getUsername();
-        $snooze_duration    = $this->getSystemSetting("redcap-notifs-snooze-minutes") ?? 3;
-        $force_refresh      = $this->getSystemSetting("redcap-notifs-refresh-limit") ?? 24;
+        $snooze_duration    = $this->getSystemSetting("redcap-notifs-snooze-minutes") ?? self::DEFAULT_NOTIF_SNOOZE_TIME_MIN;
+        $force_refresh      = $this->getSystemSetting("redcap-notifs-refresh-limit") ?? self::DEFAULT_NOTIF_REFRESH_TIME_HOUR;
         ?>
         <link rel="stylesheet" href="<?= $notif_css ?>">
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js" integrity="sha512-3j3VU6WC5rPQB4Ld1jnLV7Kd5xr+cq9avvhwqzbH/taCRNURoeEpoPBK9pDyeukwSxwRPJ8fDgvYXd6SkaZ2TA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -383,6 +385,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
             var redcap_csrf_token   = "<?=$this->getCSRFToken()?>";
             var snooze_duration     = "<?=$snooze_duration?>";
             var force_refresh       = "<?=$force_refresh?>";
+
             $(window).on('load', function () {
                 var notifs_config = {
                     "current_user" : cur_user,

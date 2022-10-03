@@ -8,10 +8,10 @@ var modal_container     = `<div id="redcap_modal_notifs" class="modal redcap_not
                                     <div class="modal-body pt-2">
                                         <div id="errMsgContainerModal" class="alert alert-danger col-md-12" role="alert" style="display:none;margin-bottom:20px;"></div>
                                         <div class="mb-2">These notifications can be dismissed or 'snoozed'.  But should not be ignored.</div>
-                                        <div class="notif_cont_gen">
+                                        <div class="notif_cont_system">
 
                                         </div>
-                                        <div class="notif_cont_proj">
+                                        <div class="notif_cont_project">
 
                                         </div>
                                     </div>
@@ -28,10 +28,10 @@ var banner_container    = `<div id="redcap_banner_notifs" class="redcap_notifs">
                                 <button class="btn-s-xs btn-rcred dismiss_all">Dismiss All</button>
                                 <button class="btn-s-xs btn-rcpurple-light snooze">Snooze All <span></span></button>
                             </div>
-                            <div class="notif_cont_gen">
+                            <div class="notif_cont_system">
 
                             </div>
-                            <div class="notif_cont_proj">
+                            <div class="notif_cont_project">
 
                             </div>
                         </div>`;
@@ -46,6 +46,10 @@ function RCNotifs(config) {
     this.snooze_duration            = config.snooze_duration;
     this.force_refresh              = config.force_refresh;
     this.page                       = config.current_page;
+
+    console.log("current page is : ", this.page);
+
+    this.default_polling_int        = 30000; //30 seconds
 
     //default empty "payload"
     this.payload = {
@@ -62,6 +66,11 @@ function RCNotifs(config) {
 
     this.banner_jq          = null;
     this.modal_jq           = null;
+
+    this.notif_objs         = [];
+    this.banner_notifs      = [];
+    this.modal_notifs       = [];
+    this.survey_notifs      = [];
 
     //load and parse notifs
     this.loadNotifs();
@@ -86,7 +95,7 @@ RCNotifs.prototype.refreshFromServer = function(notif_type){
     var data        = {
          "last_updated"     : this.server_time
         ,"redcap_csrf_token": this.redcap_csrf_token
-        ,"proj_or_sys" : notif_type ?? null
+        ,"proj_or_sys"      : notif_type ?? "both"
     };
 
     return new Promise(function(resolve, reject) {
@@ -115,11 +124,15 @@ RCNotifs.prototype.loadNotifs = function(){
         this.refreshFromServer().then(function(data) {
             // SUCCESFUL, parse Notifs and store in this.notif
             var response = decode_object(data);
-            _this.parseNotifs(response);
+            if(response){
+                _this.parseNotifs(response);
+            }
         }).catch(function(err) {
             // Run this when promise was rejected via reject()
-            console.log("Error loading notifs, do nothing they just wont see the notifs this time",err)
+            console.log("Error loading or parsing notifs, do nothing they just wont see the notifs this time",err);
         });
+    }else{
+        this.buildNotifUnits();
     }
 
     return;
@@ -140,16 +153,24 @@ RCNotifs.prototype.parseNotifs = function(data){
         ,"snooze_expire" : {"banner" : null, "modal" :null }
     };
     console.log("fresh load from server", this.payload);
+
+    this.buildNotifUnits();
+
     localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
 }
 RCNotifs.prototype.isStale = function(){
+    var hours_since_last_updated = "N/A";
     if(this.payload.server.updated){
-        var hours_since_last_updated = getDifferenceInHours(new Date(this.getOffsetTime(this.payload.server.updated)) , Date.now()) ;
+        hours_since_last_updated = getDifferenceInHours(new Date(this.getOffsetTime(this.payload.server.updated)) , Date.now()) ;
         if(hours_since_last_updated < this.force_refresh){
             return false;
         }
     }
-    console.log("isStale() " + hours_since_last_updated +  " hours since last updated" );
+    console.log("notif payload isStale() " + hours_since_last_updated +  " hours since last updated" );
+    return true;
+}
+RCNotifs.prototype.notifDiff = function(){
+    //FIGURE OUT HOW TO COMPARE IF NOTIF PACKAGE IS DIFF? MUST BE PERFORMANT SOME JS UTIL? JQUERY?
     return true;
 }
 
@@ -158,7 +179,7 @@ RCNotifs.prototype.pollDismissNotifs = function(){
     var _this = this;
     setInterval(function() {
         _this.dismissNotifs()
-    }, 30000); // 60 * 1000 milsec
+    }, this.default_polling_int);
 }
 RCNotifs.prototype.pollNotifsDisplay = function(){
     var _this = this;
@@ -170,34 +191,31 @@ RCNotifs.prototype.pollNotifsDisplay = function(){
         }else{
             console.log("no payload to display yet");
         }
-    }, 30000); // 60 * 1000 milsec
+    }, this.default_polling_int);
 }
 
 //UI display and behavior
 RCNotifs.prototype.showNotifs = function(){
     //Check against the snoozed notifs
     //Also check against FUTURE start time stamps
-    var notifs = this.payload.notifs;
-
-    if(!notifs.length){
+    if(!this.notif_objs.length){
         return;
     }
 
-    //build notifs
-    if((!this.banner_jq || !this.modal_jq)){
-        this.buildNotifs();
-    }
+    this.hideNotifs("banner");
+    this.hideNotifs("modal");
 
-    // LY - adding check for this.banner_jq is not null otherwise .length bombs
-    if(!this.isSnoozed("banner") && this.banner_jq && this.banner_jq.find(".alert").length){
+    //rebuild everytime?
+    this.buildNotifs();
+
+    if(!this.isSnoozed("banner") && this.banner_jq && this.banner_jq.find(".notif.alert").length){
         if(!$("#redcap_banner_notifs").length && $("#subheader").length){
             $("#subheader").after(this.banner_jq);
         }
     }
 
-    if(!this.isSnoozed("modal") && this.modal_jq.find(".alert").length){
+    if(!this.isSnoozed("modal") && this.modal_jq && this.modal_jq.find(".notif.alert").length){
         var opaque  = $("<div>").prop("id","redcap_notifs_blocker");
-
         if(!$("#redcap_notifs_blocker").length){
             $("body").append(opaque).append(this.modal_jq);;
         }
@@ -205,24 +223,28 @@ RCNotifs.prototype.showNotifs = function(){
 }
 RCNotifs.prototype.hideNotifs = function(notif_type){
     var _this = this;
-    if(notif_type == "modal"){
-        $("#redcap_notifs_blocker").fadeOut("fast", function(){
-            $(this).remove();
-            _this.modal_jq.addClass("hide");
-            _this.modal_jq.remove();
-            _this.modal_jq = null;
-        });
-    }
 
     if(notif_type == "banner"){
-        this.banner_jq.addClass("hide");
-        this.banner_jq.remove();
+        if(this.banner_jq){
+            this.banner_jq.addClass("hide");
+            this.banner_jq.remove();
+        }
         this.banner_jq = null;
+    }
+
+    if(notif_type == "modal"){
+        if(this.modal_jq){
+            this.modal_jq.addClass("hide");
+            this.modal_jq.remove();
+        }
+        _this.modal_jq = null;
+        $("#redcap_notifs_blocker").remove();
+
     }
 }
 RCNotifs.prototype.buildNotifs = function(){
     var _this           = this;
-    var all_notifs      = this.payload.notifs;
+    var all_notifs      = this.notif_objs;
 
     var html_cont       = {};
     html_cont["banner"] = $(banner_container);
@@ -230,6 +252,7 @@ RCNotifs.prototype.buildNotifs = function(){
 
     //Batch hide notifs containers FOR "snooze" or "one off hide"
     html_cont["banner"].find(".dismiss_all").click(function(){
+        console.log("dismmiss all dismissable banners");
         if(html_cont["banner"].find(".dismissable").length){
             html_cont["banner"].find(".dismissable .notif_ftr button").each(function(){
                 if($(this).is(":visible")){
@@ -247,6 +270,7 @@ RCNotifs.prototype.buildNotifs = function(){
     });
 
     html_cont["modal"].find(".dismiss_all").click(function(){
+        console.log("dismmiss all dismissable modal");
         if(html_cont["modal"].find(".dismissable").length){
             html_cont["modal"].find(".dismissable .notif_ftr button").each(function(){
                 if($(this).is(":visible")){
@@ -262,20 +286,28 @@ RCNotifs.prototype.buildNotifs = function(){
         _this.snoozeNotifs("modal");
         _this.hideNotifs("modal");
     });
+
     if(this.snooze_duration){
         html_cont["modal"].find(".snooze span").text("for " + this.snooze_duration + " min.");
         html_cont["banner"].find(".snooze span").text("for " + this.snooze_duration + " min.");
     }
 
-    for(var i in all_notifs){
-        var notif = new RCNotif(all_notifs[i], _this);
-        if(!notif.isDismissed() && !notif.isFuture() && !notif.isExpired()){
-            html_cont[notif.getType()].find(".notif_cont_"+notif.getTarget()).append(notif.getJQUnit());
+    if(this.notifDiff()){
+        for(var i in all_notifs){
+            var notif = all_notifs[i];
+
+            if(!notif.isDismissed() && !notif.isFuture() && !notif.isExpired() && notif.displayOnPage()){
+                //force surveys to be modals no matter what
+                var notif_type = notif.getTarget() == "survey" ? "modal" : notif.getType();
+                var notif_cont = notif.getTarget() == "survey" ? ".notif_cont_project" : ".notif_cont_"+notif.getTarget();
+
+                html_cont[notif_type].find(notif_cont).append(notif.getJQUnit());
+            }
         }
     }
 
     for(var notif_style in html_cont){
-        if(html_cont[notif_style].find(".alert").length){
+        if(html_cont[notif_style].find(".notif.alert").length){
             if(notif_style == "banner"){
                 this.banner_jq  = html_cont[notif_style];
             }else{
@@ -286,15 +318,22 @@ RCNotifs.prototype.buildNotifs = function(){
 }
 RCNotifs.prototype.dismissNotif = function(data){
     this.payload.client.dismissed.push(data);
+
+    //REDRAW
+    this.showNotifs();
+
     localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
 }
 RCNotifs.prototype.dismissNotifs = function(){
+    console.log("polling dismiss 30 sec", this.payload.client.dismissed.length);
+
     if(this.payload.client.dismissed.length){
         var _this = this;
         var data = {
             "dismiss_notifs" : this.payload.client.dismissed,
             "redcap_csrf_token" : this.redcap_csrf_token
         }
+
         $.ajax({
             url: this.dismiss_endpoint,
             method: 'POST',
@@ -309,7 +348,7 @@ RCNotifs.prototype.dismissNotifs = function(){
             console.log("dismissNotif failed", e);
         });
     }else{
-        console.log("no notifs to dismiss yet");
+        // console.log("no notifs to dismiss yet");
     }
 }
 RCNotifs.prototype.resolveDismissed = function(remove_notifs){
@@ -326,6 +365,26 @@ RCNotifs.prototype.resolveDismissed = function(remove_notifs){
         if ($.inArray(this.payload.notifs[i]["record_id"], remove_notifs) > -1) {
             this.payload.notifs.splice(i, 1);
             localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
+        }
+    }
+}
+RCNotifs.prototype.buildNotifUnits = function(){
+    if(this.payload.notifs.length){
+        var dismissed_ids = [];
+
+        for(var i in this.payload.client.dismissed){
+            dismissed_ids.push(this.payload.client.dismissed[i]["record_id"]);
+        }
+
+        for(var i in this.payload.notifs){
+            var notif = new RCNotif(this.payload.notifs[i], this);
+
+            //if in dimissed queue dont show
+            if($.inArray(notif.getRecordId(), dismissed_ids)> -1){
+                notif.setDismissed();
+            }
+
+            this.notif_objs.push(notif);
         }
     }
 }
@@ -368,6 +427,11 @@ RCNotifs.prototype.getOffsetTime = function(date_str){
     return offset_date_time;
 }
 
+//GET
+RCNotifs.prototype.getCurPage = function(){
+    return this.page;
+}
+
 //misc utility
 function readCookie(cookie_name){
     var cookie_dough    = $.cookie(cookie_name);
@@ -402,7 +466,9 @@ function decode_object(obj) {
         var parsedObj = obj;
         if (typeof obj === 'string') {
             var temp = obj.replace(/&quot;/g, '"').replace(/[\n\r\t\s]+/g, ' ')
-            parsedObj = JSON.parse(temp);
+            if(isJsonString(temp)){
+                parsedObj = JSON.parse(temp);
+            }
         }
 
         for (key in parsedObj) {
@@ -414,8 +480,7 @@ function decode_object(obj) {
         }
         return parsedObj
     } catch (error) {
-        console.error(error);
-        alert(error)
+        console.log(error);
         // expected output: ReferenceError: nonExistentFunction is not defined
         // Note - error messages will vary depending on browser
     }

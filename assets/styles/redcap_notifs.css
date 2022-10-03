@@ -25,7 +25,12 @@
 #redcap_banner_notifs{
     width:100%;
     max-width:800px;
-
+    margin-bottom: 30px;
+    padding-bottom:5px;
+    border-bottom:1px solid #ccc;
+}
+#redcap_banner_notifs button{
+    border-radius:3px;
 }
 
 #redcap_banner_notifs .banner-header{
@@ -70,6 +75,16 @@
     font-size:108%;
     margin:0 0 5px;
 }
+
+.redcap_notifs .alert .notif_bdy i.fas{
+    position: absolute;
+    left: 10px;
+    width: 40px;
+    height: 40px;
+    font-size: 38px;
+    text-align:center;
+}
+
 .redcap_notifs .alert .notif_bdy .lead{
     font-size:92%;
 }
@@ -95,7 +110,12 @@
     font-size:77%;
 }
 
-
+.redcap_notifs .alert .has_icon{
+    padding-left:50px;
+    background-size:40px;
+    background-repeat: no-repeat;
+    background-position: 0 0;
+}
 /*
 growler style
 
