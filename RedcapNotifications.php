@@ -40,11 +40,24 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $notification_pid = $this->getSystemProjectIDs('notification-pid');
         if ($notification_pid == $project_id and !empty($record)) {
 
+            $last_update_ts = (new DateTime())->format('Y-m-d H:i:s');
+
+            $params = array(
+                "records" => $record,
+                "return_format" => "json",
+                "fields" => array("force_refresh")
+            );
+            $json       = REDCap::getData($params);
+            $response   = json_decode($json,true);
+            if($response["force_refresh___1"] == "1"){
+                $this->setSystemSetting("force_refresh_ts", $last_update_ts);
+            }
+
             // Save the last record update date/time
             $saveData = array(
                 array(
                     "record_id" => $record,
-                    "note_last_update_time" => (new DateTime())->format('Y-m-d H:i:s')
+                    "note_last_update_time" => $last_update_ts
                 )
             );
             $response = REDCap::saveData('json', json_encode($saveData), 'overwrite');
@@ -79,6 +92,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @return array|null
      */
     public function refreshNotifications($user, $since_last_update=null, $project_or_system_or_both=null) {
+
+        //TODO use $this->log() to Record MS diff to see how long these queries are taking
 
         $this->emDebug("In refreshNotifications: since last update: $since_last_update, note type: $project_or_system_or_both, for user $user");
         if (empty($project_or_system_or_both)) {
@@ -370,21 +385,29 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $notifs_js      = $this->getUrl("assets/scripts/redcap_notifs.js");
         $notif_js       = $this->getUrl("assets/scripts/redcap_notif.js");
         $cur_user       = $this->getUser()->getUsername();
+
+        //TODO maybe drop this into LocalStorage AND not do every time
         $snooze_duration    = $this->getSystemSetting("redcap-notifs-snooze-minutes") ?? self::DEFAULT_NOTIF_SNOOZE_TIME_MIN;
-        $force_refresh      = $this->getSystemSetting("redcap-notifs-refresh-limit") ?? self::DEFAULT_NOTIF_REFRESH_TIME_HOUR;
+        $refresh_limit      = $this->getSystemSetting("redcap-notifs-refresh-limit") ?? self::DEFAULT_NOTIF_REFRESH_TIME_HOUR;
+        $force_refresh_ts   = $this->getSystemSetting("force_refresh_ts") ?? null;
+
+        //TODO add to notifs config, client filters, dev/prod, exceptions?
+
+        //TODO make the notifs config as php array and then jsonencode it right into the RCNotifs Init
         ?>
         <link rel="stylesheet" href="<?= $notif_css ?>">
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js" integrity="sha512-3j3VU6WC5rPQB4Ld1jnLV7Kd5xr+cq9avvhwqzbH/taCRNURoeEpoPBK9pDyeukwSxwRPJ8fDgvYXd6SkaZ2TA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
         <script src="<?= $notif_js ?>" type="text/javascript"></script>
         <script src="<?= $notifs_js ?>" type="text/javascript"></script>
         <script>
+            //TOODO put these right in the notifs_config not global, REMOVE
             var dismissal_cb        = "<?=$dismissal_cb?>";
             var refresh_notifs      = "<?=$refresh_notifs?>";
             var cur_user            = "<?=$cur_user?>";
             var cur_page            = "<?=PAGE?>";
             var redcap_csrf_token   = "<?=$this->getCSRFToken()?>";
             var snooze_duration     = "<?=$snooze_duration?>";
-            var force_refresh       = "<?=$force_refresh?>";
+            var refresh_limit       = "<?=$refresh_limit?>";
+            var force_refresh_ts    = "<?=$force_refresh_ts?>";
 
             $(window).on('load', function () {
                 var notifs_config = {
@@ -393,7 +416,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
                     "dismiss_notifs_endpoint" : dismissal_cb,
                     "redcap_csrf_token" : redcap_csrf_token,
                     "snooze_duration" : snooze_duration,
-                    "force_refresh" : force_refresh,
+                    "refresh_limit" : refresh_limit,
+                    "invalidate_cache" : force_refresh_ts,
                     "current_page" : cur_page
                 }
                 var rc_notifs = new RCNotifs(notifs_config);

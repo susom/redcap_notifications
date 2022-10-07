@@ -38,13 +38,19 @@ var banner_container    = `<div id="redcap_banner_notifs" class="redcap_notifs">
 
 function RCNotifs(config) {
     //read storage value
+
+    //TODO should the localstorage key be keyed to USER , concat USER
     this.redcap_notif_storage_key   = "redcapNotifications";
     this.user                       = config.current_user;
+
+    //TODO combine ENDpoints into one ajax_handler + switch statements
     this.refresh_endpoint           = config.refresh_notifs_endpoint;
     this.dismiss_endpoint           = config.dismiss_notifs_endpoint;
+
     this.redcap_csrf_token          = config.redcap_csrf_token;
+
     this.snooze_duration            = config.snooze_duration;
-    this.force_refresh              = config.force_refresh;
+    this.force_refresh              = config.refresh_limit;
     this.page                       = config.current_page;
 
     console.log("current page is : ", this.page);
@@ -68,9 +74,6 @@ function RCNotifs(config) {
     this.modal_jq           = null;
 
     this.notif_objs         = [];
-    this.banner_notifs      = [];
-    this.modal_notifs       = [];
-    this.survey_notifs      = [];
 
     //load and parse notifs
     this.loadNotifs();
@@ -120,6 +123,7 @@ RCNotifs.prototype.loadNotifs = function(){
 
     if( this.isStale() ){
         //TODO system settings WHEN to DO a FULL update (based on time delta? )
+        //TODO use the invalidate_cache ts to compare
         var _this = this;
         this.refreshFromServer().then(function(data) {
             // SUCCESFUL, parse Notifs and store in this.notif
@@ -431,6 +435,9 @@ RCNotifs.prototype.getOffsetTime = function(date_str){
 RCNotifs.prototype.getCurPage = function(){
     return this.page;
 }
+
+//TODO write log method , to possibly send it back to REDCap
+
 
 //misc utility
 function readCookie(cookie_name){

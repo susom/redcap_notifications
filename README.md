@@ -21,3 +21,4 @@ There are three paths to create notifications.  They are described below:
 2. <b>EM System page</b> - This page, from the Control Panel, can be used to create notifications for system announcements.  For instance, notifications can be created when REDCap will be offline for upgrades, when new features are enabled, etc.
 3. <b>API Endpoint</b> - This endpoint can be used by trusted outside processes which are allowed to notify REDCap users. Examples are automatted notifications when email servers go down, etc.
 
+TODO - ELI5 the mechanism (front end)
