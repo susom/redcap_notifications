@@ -94,6 +94,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     public function refreshNotifications($user, $since_last_update=null, $project_or_system_or_both=null) {
 
         //TODO use $this->log() to Record MS diff to see how long these queries are taking
+        $refreshStart = hrtime(true);
 
         $this->emDebug("In refreshNotifications: since last update: $since_last_update, note type: $project_or_system_or_both, for user $user");
         if (empty($project_or_system_or_both)) {
@@ -105,22 +106,29 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $dismissal_pid      = $this->getSystemProjectIDs('dismissal-pid');
 
         // Get current timestamp so we can pull notifications that are still open
-        $new_timestamp      = new DateTime();
-        $now                = $new_timestamp->format('Y-m-d H:i:s');
+        $now                = (new DateTime())->format('Y-m-d H:i:s');
 
         // Find which projects this user is a member - Some notifications may target all
         // Project Admins so we also need to check if this person is a project admin on
         // any project.
-        [$allProjectslists, $projAdminProjects] = $this->getAllProjectList($user, $now);
-        $this->emDebug("All project list: " . json_encode($allProjectslists));
+        // If the user is empty, this must be a survey so skip the processing for projects and DCs and dismissed notifications
+        if (empty($user)) {
+            $allProjectslists = [];
+            $projAdminProjects = [];
+            $dcProjects = [];
+            $dismissed = [];
+        } else {
+            [$allProjectslists, $projAdminProjects] = $this->getAllProjectList($user, $now);
+            $this->emDebug("All project list: " . json_encode($allProjectslists));
 
-        // Retrieve list of projects that this person is a Designated Contact
-        $dcProjects         = $this->getDCProjectList($user);
-        $this->emDebug("Designated Contact projects: " . json_encode($dcProjects));
+            // Retrieve list of projects that this person is a Designated Contact
+            $dcProjects = $this->getDCProjectList($user);
+            $this->emDebug("Designated Contact projects: " . json_encode($dcProjects));
 
-        // Get list of notifications that have already been dismissed and should not be displayed again
-        $dismissed          = $this->getDismissedNotifications($dismissal_pid, $user);
-        $this->emDebug("Dismissed Notifications: " . json_encode($dismissed));
+            // Get list of notifications that have already been dismissed and should not be displayed again
+            $dismissed          = $this->getDismissedNotifications($dismissal_pid, $user);
+            $this->emDebug("Dismissed Notifications: " . json_encode($dismissed));
+        }
 
         $notif_proj_payload = array();
         $notif_sys_payload = array();
@@ -137,13 +145,18 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         if ($project_or_system_or_both == 'system' || $project_or_system_or_both == 'both') {
 
             // Pull all system notifications
-            $proj_admin = !empty($projAdminProjects);
             $notif_sys_payload     = $this->getSystemNotifications($notification_pid, $now, $dcProjects,
-                        $proj_admin, $dismissed, $since_last_update);
+                $projAdminProjects, $dismissed, $since_last_update);
         }
 
         $notif_payload = array_merge($notif_proj_payload, $notif_sys_payload);
         $this->emDebug("Notification Payload:", json_encode($notif_payload));
+
+        // changes nanoseconds to milliseconds
+        $refreshEnd = hrtime(true);
+        $refreshTime = ($refreshEnd - $refreshStart)/1e+6;
+        REDCap::logEvent("The refresh payload for user $user took $refreshTime milliseconds");
+        $this->emDebug("The refresh payload for user $user took $refreshTime milliseconds");
 
         return [
              "notifs" => $notif_payload,
@@ -160,6 +173,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     public function getSystemProjectIDs($whichProj) {
         return $this->getSystemSetting($whichProj);
     }
+
 
     /**
      * Retrieves list of all REDCap projects for this user. Also, filters the list to return a list of
@@ -244,18 +258,17 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @param $since_last_update
      * @return array
      */
-    private function getSystemNotifications($notification_pid, $now, $dcProjects, $proj_admin, $dismissed, $since_last_update)  {
+    private function getSystemNotifications($notification_pid, $now, $dcProjects, $projAdminProjects, $dismissed, $since_last_update)  {
         //TODO WHAT WRONG WITH SYNTAX ADDING "OR [note_end_dt] == ''" ????
         // We are first pulling 'general' notifications that are not project dependant
         $filter = "([note_project_id] = '') and ([note_end_dt] > '" . $now . "')" .
-                    " and ([notifications_complete] = '2' || true)";
+                    " and ([notifications_complete] = '2')";
         if (!empty($since_last_update)) {
             $filter .= " and ([note_last_update_time] > '" . $since_last_update . "')";
         }
 
-        // Retrieve notifications that fit the criteria
-        $active_notifications   = REDCap::getData($notification_pid, 'json', null, null, null, null, null, null, null, $filter);
-        $sys_notifications      = json_decode($active_notifications, true);
+        // Retrieve system notification list
+        $sys_notifications = $this->getNotificationList($notification_pid, $filter);
 
         // Check if this notification pertains to this user
         $sysNotifications = array();
@@ -274,13 +287,34 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
                         // If this notification is for everyone, add it to my active notification list
                         $sysNotifications[] = $notification;
 
-                    } else if ($notification['note_user_types'] = 'admin' and $proj_admin) {
-                        // If this notification is for project admins and I am a project admin, add it to my list
-                        $sysNotifications[] = $notification;
+                    } else if ($notification['note_user_types'] = 'admin' and !empty($projAdminProjects)) {
+
+                        // If this notification is for project admins and I am a project admin on a project not on the
+                        // Project exclusion list
+                        if (!empty($notification['project_exclusion'])) {
+                            $filteredProjList = $this->excludeProjects($projAdminProjects, $notification['project_exclusion']);
+                        } else {
+                            $filteredProjList = $projAdminProjects;
+                        }
+
+                        if (!empty($filteredProjList)) {
+                            $sysNotifications[] = $notification;
+                        }
 
                     } else if ($notification['note_user_types'] = 'dc' and !empty($dcProjects)) {
-                        // If this notification is for designated contacts and I am a designated contact, add it to my list
-                        $sysNotifications[] = $notification;
+
+                        // If this notification is for designated contacts and I am a designated contact not on the
+                        // project exclusion list, add it to my list
+                        if (!empty($notification['project_exclusion'])) {
+                            $filteredDCList = $this->excludeProjects($dcProjects, $notification['project_exclusion']);
+                        } else {
+                            $filteredDCList = $dcProjects;
+                        }
+
+                        if (!empty($filteredDCList)) {
+                            $sysNotifications[] = $notification;
+                        }
+
                     }
                 }
             }
@@ -288,6 +322,42 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 
         return $sysNotifications;
     }
+
+
+    /**
+     * Retrieve the list of projects based on the filter
+     *
+     * @param $notification_pid
+     * @param $filter
+     * @return array of notifications
+     */
+    private function getNotificationList($notification_pid, $filter)
+    {
+        // Retrieve notifications that fit the criteria
+        $params = array(
+            'project_id' => $notification_pid,
+            'return_format' => 'json',
+            'filterLogic' => $filter
+        );
+        $active_notifications = REDCap::getData($params);
+        return json_decode($active_notifications, true);
+
+    }
+
+    /**
+     * Exclude a list of projects from the list of projects passed in.
+     *
+     * @param $projAdminProjects
+     * @param $excludeList
+     * @return array
+     */
+    private function excludeProjects($projects, $excludeList) {
+
+        // Convert excluded project list into array and delete those projects from the Admin Project list
+        $excludedProjs = explode(',', $excludeList);
+        return array_diff($projects, $excludedProjs);
+    }
+
 
     /**
      * Retrieves a list of project level notifications for this user. Displays the same notification once
@@ -310,13 +380,12 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
             $filter .= " and ([note_last_update_time] > '" . $since_last_update . "') ";
         }
 
-        // Retrieve notifications that fit the criteria and we are on the project
-        $active_notifications   = REDCap::getData($notification_pid, 'json', null, null, null, null, null, null, null, $filter);
-        $proj_notifications     = json_decode($active_notifications, true);
+        // Retrieve project notification list
+        $projNotificationsList = $this->getNotificationList($notification_pid, $filter);
 
         $projNotifications  = array();
         $repeatMsg          = array();
-        foreach($proj_notifications as $notification) {
+        foreach($projNotificationsList as $notification) {
 
             // If this alert record_id is in the dismissed list, don't display anymore. Also, make sure we are a member
             // of the project before adding to our list
