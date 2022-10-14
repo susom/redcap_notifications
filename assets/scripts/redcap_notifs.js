@@ -320,8 +320,10 @@ RCNotifs.prototype.buildNotifs = function(){
 
     //Batch hide notifs containers FOR "snooze" or "one off hide"
     html_cont["banner"].find(".dismiss_all").click(function(){
-        _this.console.log("dismmiss all dismissable banners", "misc");
+        // _this.console.log("dismmiss all dismissable banners", "debug");
         if(html_cont["banner"].find(".dismissable").length){
+            // _this.console.log("how many banner notifs to dimsmiss " + html_cont["banner"].find(".dismissable .notif_ftr button").length, "debug");
+
             html_cont["banner"].find(".dismissable .notif_ftr button").each(function(){
                 if($(this).is(":visible")){
                     $(this).trigger("click");
@@ -338,8 +340,10 @@ RCNotifs.prototype.buildNotifs = function(){
     });
 
     html_cont["modal"].find(".dismiss_all").click(function(){
-        _this.console.log("dismmiss all dismissable modal", "misc");
+        // _this.console.log("dismmiss all dismissable modal", "debug");
         if(html_cont["modal"].find(".dismissable").length){
+            // _this.console.log("how many modal notifs to dismiss? " + html_cont["modal"].find(".dismissable .notif_ftr button").length, "debug");
+
             html_cont["modal"].find(".dismissable .notif_ftr button").each(function(){
                 if($(this).is(":visible")){
                     $(this).trigger("click");
@@ -384,10 +388,6 @@ RCNotifs.prototype.buildNotifs = function(){
 }
 RCNotifs.prototype.dismissNotif = function(data){
     this.payload.client.dismissed.push(data);
-
-    //REDRAW
-    this.showNotifs();
-
     localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
 }
 RCNotifs.prototype.dismissNotifs = function(){
@@ -401,6 +401,7 @@ RCNotifs.prototype.dismissNotifs = function(){
             "redcap_csrf_token" : this.redcap_csrf_token
         }
 
+        return;
         $.ajax({
             url: this.ajax_endpoint,
             method: 'POST',
@@ -503,7 +504,9 @@ RCNotifs.prototype.getLastUpdate = function(){
 //LOGGING
 RCNotifs.prototype.pushLogs = function(){
     var _this       = this;
-    var all_logs    = _this.console.getAllLogs();
+
+    //TODO LATER ON TURN THIS BACK ON
+    var all_logs    = {"hi":"bye"};//_this.console.getAllLogs();
 
     console.log("all logs", all_logs);
 
