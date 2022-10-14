@@ -38,22 +38,23 @@ var banner_container    = `<div id="redcap_banner_notifs" class="redcap_notifs">
 
 function RCNotifs(config) {
     //read storage value
-
-    //TODO should the localstorage key be keyed to USER , concat USER
     this.redcap_notif_storage_key   = "redcapNotifications";
     this.user                       = config.current_user;
+    this.redcap_notif_storage_key   += "_" + this.user;
 
-    //TODO combine ENDpoints into one ajax_handler + switch statements
-    this.refresh_endpoint           = config.refresh_notifs_endpoint;
-    this.dismiss_endpoint           = config.dismiss_notifs_endpoint;
+    this.ajax_endpoint              = config.ajax_endpoint;
 
     this.redcap_csrf_token          = config.redcap_csrf_token;
 
     this.snooze_duration            = config.snooze_duration;
-    this.force_refresh              = config.refresh_limit;
+    this.refresh_limit              = config.refresh_limit;
+    this.force_refresh              = null;
+
     this.page                       = config.current_page;
 
-    console.log("current page is : ", this.page);
+    this.console                    = console;//new Logging({"debug" : true, "error" : true});
+
+    this.console.log("current page is : " + this.page, "debug");
 
     this.default_polling_int        = 30000; //30 seconds
 
@@ -79,24 +80,27 @@ function RCNotifs(config) {
     this.loadNotifs();
 
     //KICK OFF POLL TO SHOW NOTIFS (IF NOT SNOOZED)
+    if(this.payload.server.updated){
+        //first time just call it , then interval 30 seconds there after
+        this.getForceRefresh();
+        this.showNotifs();
+    }
     if(this.payload.client.dismissed.length){
         //first time just call it , then interval 30 seconds there after
         this.dismissNotifs();
     }
-    if(this.payload.server.updated){
-        //first time just call it , then interval 30 seconds there after
-        this.showNotifs();
-    }
 
-    this.pollNotifsDisplay();
-    this.pollDismissNotifs();
+    this.startPolling();
 }
 
 //notification payload
 RCNotifs.prototype.refreshFromServer = function(notif_type){
-    var _ajax_ep    = this.refresh_endpoint;
+    var _ajax_ep    = this.ajax_endpoint;
+
+    //
     var data        = {
-         "last_updated"     : this.server_time
+         "action"           : "refresh"
+        ,"last_updated"     : this.force_refresh ? null : this.getLastUpdate()
         ,"redcap_csrf_token": this.redcap_csrf_token
         ,"proj_or_sys"      : notif_type ?? "both"
     };
@@ -122,8 +126,6 @@ RCNotifs.prototype.loadNotifs = function(){
     }
 
     if( this.isStale() ){
-        //TODO system settings WHEN to DO a FULL update (based on time delta? )
-        //TODO use the invalidate_cache ts to compare
         var _this = this;
         this.refreshFromServer().then(function(data) {
             // SUCCESFUL, parse Notifs and store in this.notif
@@ -133,7 +135,7 @@ RCNotifs.prototype.loadNotifs = function(){
             }
         }).catch(function(err) {
             // Run this when promise was rejected via reject()
-            console.log("Error loading or parsing notifs, do nothing they just wont see the notifs this time",err);
+            _this.console.log("Error loading or parsing notifs, do nothing they just wont see the notifs this time",  "error");
         });
     }else{
         this.buildNotifUnits();
@@ -156,29 +158,75 @@ RCNotifs.prototype.parseNotifs = function(data){
         ,"notifs" : data["notifs"]
         ,"snooze_expire" : {"banner" : null, "modal" :null }
     };
-    console.log("fresh load from server", this.payload);
+    this.console.log("fresh load from server" + JSON.stringify(this.payload), "info");
 
+    //fresh payload, need to clear out notifs cache.
+    this.notif_objs = [];
     this.buildNotifUnits();
 
     localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
+
+    if(this.force_refresh){
+        //TODO DOES IT MAKE SENSE TO LOAD JUST NEW STUFF SINCE THE LAST UPDATE AND CONCATING , OR JUST PULL ENTIRELY NEW FRESH BATCH?
+        this.force_refresh = false;
+    }
 }
 RCNotifs.prototype.isStale = function(){
+    if(this.force_refresh){
+        return true;
+    }
+
     var hours_since_last_updated = "N/A";
     if(this.payload.server.updated){
         hours_since_last_updated = getDifferenceInHours(new Date(this.getOffsetTime(this.payload.server.updated)) , Date.now()) ;
-        if(hours_since_last_updated < this.force_refresh){
+        if(hours_since_last_updated < this.refresh_limit){
             return false;
         }
     }
-    console.log("notif payload isStale() " + hours_since_last_updated +  " hours since last updated" );
+    this.console.log("notif payload isStale() " + hours_since_last_updated +  " hours since last updated", "info");
     return true;
 }
-RCNotifs.prototype.notifDiff = function(){
-    //FIGURE OUT HOW TO COMPARE IF NOTIF PACKAGE IS DIFF? MUST BE PERFORMANT SOME JS UTIL? JQUERY?
-    return true;
+RCNotifs.prototype.getForceRefresh = function(){
+    var _this   = this;
+    var data    = {
+        "action" : "force_refresh",
+        "redcap_csrf_token" : _this.redcap_csrf_token
+    }
+
+    $.ajax({
+        url: _this.ajax_endpoint,
+        method: 'POST',
+        data: data
+    }).done(function (result) {
+        if(result){
+            var forced_refresh_list = decode_object(result);
+            var force_record_ids    = Object.keys(forced_refresh_list);
+
+            for(var i in _this.notif_objs){
+                var notif_o = _this.notif_objs[i];
+                if ($.inArray(notif_o.getRecordId(), force_record_ids) > -1){
+                    var check_force = new Date(_this.getLastUpdate()) < new Date(forced_refresh_list[notif_o.getRecordId()]);
+                    if(check_force){
+                        //one match is enough to refresh entire payload
+                        _this.force_refresh = true;
+                        _this.console.log("Notif " + notif_o.getRecordId() + " needs force refresh at " + forced_refresh_list[notif_o.getRecordId()] , "info" );
+                        break;
+                    }
+                }
+            }
+        }
+    }).fail(function (e) {
+        _this.console.log("getForceRefresh failed" + JSON.stringify(e), "error");
+    });
 }
 
 //polling during page session
+RCNotifs.prototype.startPolling = function(){
+    this.pollNotifsDisplay();
+    this.pollDismissNotifs();
+    this.pollForceRefresh();
+    this.pollPushLogs();
+}
 RCNotifs.prototype.pollDismissNotifs = function(){
     var _this = this;
     setInterval(function() {
@@ -193,8 +241,24 @@ RCNotifs.prototype.pollNotifsDisplay = function(){
         }else if(_this.payload.server.updated){
             _this.showNotifs();
         }else{
-            console.log("no payload to display yet");
+            _this.console.log("no payload to display yet", "misc");
         }
+    }, this.default_polling_int);
+}
+RCNotifs.prototype.pollForceRefresh = function(){
+    var _this = this;
+    setInterval(function() {
+        var payload_last_update = _this.getLastUpdate();
+
+        if(payload_last_update){
+            _this.getForceRefresh();
+        }
+    }, this.default_polling_int);
+}
+RCNotifs.prototype.pollPushLogs = function(){
+    var _this = this;
+    setInterval(function() {
+        _this.pushLogs();
     }, this.default_polling_int);
 }
 
@@ -256,7 +320,7 @@ RCNotifs.prototype.buildNotifs = function(){
 
     //Batch hide notifs containers FOR "snooze" or "one off hide"
     html_cont["banner"].find(".dismiss_all").click(function(){
-        console.log("dismmiss all dismissable banners");
+        _this.console.log("dismmiss all dismissable banners", "misc");
         if(html_cont["banner"].find(".dismissable").length){
             html_cont["banner"].find(".dismissable .notif_ftr button").each(function(){
                 if($(this).is(":visible")){
@@ -274,7 +338,7 @@ RCNotifs.prototype.buildNotifs = function(){
     });
 
     html_cont["modal"].find(".dismiss_all").click(function(){
-        console.log("dismmiss all dismissable modal");
+        _this.console.log("dismmiss all dismissable modal", "misc");
         if(html_cont["modal"].find(".dismissable").length){
             html_cont["modal"].find(".dismissable .notif_ftr button").each(function(){
                 if($(this).is(":visible")){
@@ -296,17 +360,15 @@ RCNotifs.prototype.buildNotifs = function(){
         html_cont["banner"].find(".snooze span").text("for " + this.snooze_duration + " min.");
     }
 
-    if(this.notifDiff()){
-        for(var i in all_notifs){
-            var notif = all_notifs[i];
+    for(var i in all_notifs){
+        var notif = all_notifs[i];
 
-            if(!notif.isDismissed() && !notif.isFuture() && !notif.isExpired() && notif.displayOnPage()){
-                //force surveys to be modals no matter what
-                var notif_type = notif.getTarget() == "survey" ? "modal" : notif.getType();
-                var notif_cont = notif.getTarget() == "survey" ? ".notif_cont_project" : ".notif_cont_"+notif.getTarget();
+        if(!notif.isDismissed() && !notif.isFuture() && !notif.isExpired() && notif.displayOnPage()){
+            //force surveys to be modals no matter what
+            var notif_type = notif.getTarget() == "survey" ? "modal" : notif.getType();
+            var notif_cont = notif.getTarget() == "survey" ? ".notif_cont_project" : ".notif_cont_"+notif.getTarget();
 
-                html_cont[notif_type].find(notif_cont).append(notif.getJQUnit());
-            }
+            html_cont[notif_type].find(notif_cont).append(notif.getJQUnit());
         }
     }
 
@@ -329,30 +391,31 @@ RCNotifs.prototype.dismissNotif = function(data){
     localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
 }
 RCNotifs.prototype.dismissNotifs = function(){
-    console.log("polling dismiss 30 sec", this.payload.client.dismissed.length);
-
     if(this.payload.client.dismissed.length){
+        this.console.log("polling dismiss " +  this.payload.client.dismissed.length + " items",  " info");
+
         var _this = this;
         var data = {
+            "action" : "dismiss",
             "dismiss_notifs" : this.payload.client.dismissed,
             "redcap_csrf_token" : this.redcap_csrf_token
         }
 
         $.ajax({
-            url: this.dismiss_endpoint,
+            url: this.ajax_endpoint,
             method: 'POST',
             data: data,
             dataType : 'JSON'
         }).done(function (result) {
             if(result){
-                console.log("dismissNotif Sucess");
+                _this.console.log("dismissNotif Sucess", "misc");
                 _this.resolveDismissed(result);
             }
         }).fail(function (e) {
-            console.log("dismissNotif failed", e);
+            _this.console.log("dismissNotif failed " +  JSON.stringify(e), "error");
         });
     }else{
-        // console.log("no notifs to dismiss yet");
+        // this.console.log("no notifs to dismiss yet", "misc");
     }
 }
 RCNotifs.prototype.resolveDismissed = function(remove_notifs){
@@ -398,21 +461,19 @@ RCNotifs.prototype.snoozeNotifs = function(notif_type){
     var snooze_expire = this.calcSnoozeExpiration();
     this.payload.snooze_expire[notif_type] = snooze_expire;
     localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
-    console.log("snoozing", notif_type,  this.payload.snooze_expire);
+    this.console.log("snoozing " + notif_type + " " +  this.payload.snooze_expire, "info");
 }
 RCNotifs.prototype.isSnoozed = function(notif_type){
     var calc = Date.now() - this.payload.snooze_expire[notif_type];
     if(this.payload.snooze_expire[notif_type] && calc < 0){
-        console.log(notif_type + " notifs should be snoozed for another " , Math.abs(calc)/60000 , "minutes");
+        this.console.log(notif_type + " notifs should be snoozed for another " + Math.abs(calc)/60000 + " minutes", "info");
         return true;
     }else{
-        // console.log(notif_type, this.payload.snooze_expire[notif_type], calc, "expire is past or it is null") ;
         return false;
     }
 }
 RCNotifs.prototype.calcSnoozeExpiration = function(){
     var expiration_time = Date.now() + (this.snooze_duration*60000);
-    console.log("expiration time", Date.now(), expiration_time);
     return expiration_time;
 }
 RCNotifs.prototype.getOffsetTime = function(date_str){
@@ -426,7 +487,7 @@ RCNotifs.prototype.getOffsetTime = function(date_str){
     var time = client_offset.getHours() + ":" + client_offset.getMinutes() + ":" + client_offset.getSeconds();
     var offset_date_time = date + ' ' + time;
 
-    // console.log("offset server time in client context", server_date_time);
+    // this.console.log("offset server time in client context " + offset_date_time, "info");
 
     return offset_date_time;
 }
@@ -435,68 +496,36 @@ RCNotifs.prototype.getOffsetTime = function(date_str){
 RCNotifs.prototype.getCurPage = function(){
     return this.page;
 }
-
-//TODO write log method , to possibly send it back to REDCap
-
-
-//misc utility
-function readCookie(cookie_name){
-    var cookie_dough    = $.cookie(cookie_name);
-    var cookies         = this.isJsonString(cookie_dough) ? JSON.parse(cookie_dough) : {};
-
-    return cookies;
-}
-function isJsonString(str) {
-    try {
-        JSON.parse(str);
-    } catch (e) {
-        return false;
-    }
-    return true;
+RCNotifs.prototype.getLastUpdate = function(){
+    return this.payload.server.updated ?? null;
 }
 
-function getClientDateTime(){
-    var today = new Date();
-    var date = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
-    var time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
-    var client_date_time    = date + ' ' + time;
-    return client_date_time;
-}
-function getDifferenceInHours(date1, date2) {
-    const diffInMs = date2 - date1;
-    return round(diffInMs / (1000 * 60 * 60));
-}
+//LOGGING
+RCNotifs.prototype.pushLogs = function(){
+    var _this       = this;
+    var all_logs    = _this.console.getAllLogs();
 
-function decode_object(obj) {
-    try {
-        // parse text to json object
-        var parsedObj = obj;
-        if (typeof obj === 'string') {
-            var temp = obj.replace(/&quot;/g, '"').replace(/[\n\r\t\s]+/g, ' ')
-            if(isJsonString(temp)){
-                parsedObj = JSON.parse(temp);
-            }
-        }
+    console.log("all logs", all_logs);
 
-        for (key in parsedObj) {
-            if (typeof parsedObj[key] === 'object') {
-                parsedObj[key] = decode_object(parsedObj[key])
-            } else {
-                parsedObj[key] = decode_string(parsedObj[key])
-            }
-        }
-        return parsedObj
-    } catch (error) {
-        console.log(error);
-        // expected output: ReferenceError: nonExistentFunction is not defined
-        // Note - error messages will vary depending on browser
+    var data    = {
+        "action" : "save_logging",
+        "redcap_csrf_token" : _this.redcap_csrf_token,
+        "logs" : all_logs
     }
 
+    $.ajax({
+        url: _this.ajax_endpoint,
+        method: 'POST',
+        data: data
+    }).done(function (result) {
+        if(result){
+            console.log(decode_object(result));
+        }
+    }).fail(function (e) {
+        console.log("pushLogs failed" + JSON.stringify(e), "error");
+    });
 }
-function decode_string(input) {
-    var txt = document.createElement("textarea");
-    txt.innerHTML = input;
-    return txt.value;
-}
+
+
 
 

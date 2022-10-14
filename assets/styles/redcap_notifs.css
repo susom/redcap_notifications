@@ -108,6 +108,7 @@
     background: #D75757;
     color: #fff;
     font-size:77%;
+    box-shadow: 1px 1px 1px 0px #666;
 }
 
 .redcap_notifs .alert .has_icon{

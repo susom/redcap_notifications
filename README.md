@@ -14,8 +14,11 @@ REDCap work.
 
 
 # Notification Display Examples
-TODO: Irvin to update with pictures of different notification types.
+Banners:
+![Three Banner Types](assets/images/banner_examples.png)
 
+Modals:
+![Three Modal Types](assets/images/modal_examples.png)
 
 # Notification Setup
 There are two REDCap projects which are required to support this EM.  One project will store
@@ -38,23 +41,18 @@ There are several ways notifications can be created:
 
 # How it works
 
-TODO: Irvin to update with how it actually works
+On every page load.  The Notifications EM will inject a client side controller class (notifs.js + supporting files) into the html.
 
-The notification definitions which pertain to a specific user will reside in the browser local storage.  The notification
-definitions will be kept for 6 hours before being refreshed unless an urgent refresh is required.
+On initialization the controller will first check the browser's LocalStorage for a cached Notifications payload which contains all current and future Notifications for the current User (if any) using the key ["redcapNotifications" + _USER].
 
-When a client refresh is required, an API call to the server will occur.  Once the server receives the refresh request,
-the list of notifications will be filtered for the user based on the last update time of each notification.  If the client
-has previously received a notification but the notification definition has been updated, a new version of the
-notification will be sent to the client as well as new notifications created since the last update. Once the client receives a new notification list, local storage will be updated to reflect the current list
-of active notifications for the user.
+The controller will then parse the Notifications payload to display any system-wide or project specific notifications in the proper context for the current User.
 
-When users dismiss notifications, the client will track that active in a dismissed notification list.  At regular
-intervals, the dismissed notification list will be sent back to the server and stored in the Notification Dismissed
-project.
+The Notifications payload is timestamped.  On each interval of the refreshNotifs() polling function, the delta between the client's offset local time and the cached payload's last updated timestamp is evaluated.  If the delta is *greater than the default refresh limit of 6 hours, a new Notifications payload will be requested from the server and replace the current cache.
+In some circumstances an immediate update is required and can be initiated from the REDCap Notifications project (by checking ["force_refresh"] in the record for the Notification).  The main EM will monitor an EM system-settings flag to determine if the refresh limit shall be *over-ridden.
 
-At any point in time, the client has the most current notifications which pertain to the logged in user or
-survey users.
+Some notification are "dismissable".  For those notifs, a "dismiss" button will be presented.  If pressed, the controller updates the UI accordingly and caches the dismissed notification in a dismissed notification list/queue.  At regular
+intervals, the dismissed notification list will be sent back to the server in batch and stored in the Notification Dismissed project to be excluded from the user's future Notifications payloads.
+
 
 ## Notification Definitions
 The REDCap notification project has the following fields which will create one notification
@@ -102,6 +100,3 @@ notification is considered Inactive and will not be displayed.
 - **note_username** - User ID of the person dismissing the notification
 - **note_dismissal_datetime** - Timestamp when the user dismissed the notification
 - **note_dismissed_stored_time** - Timestamp when the dismissal is stored in REDCap
-
-
-TODO - ELI5 the mechanism (front end)

@@ -115,7 +115,7 @@ RCNotif.prototype.isFuture = function(){
     var notif_start_ts  = new Date(this.parent.getOffsetTime(notif_start_str));
     this.future         = notif_start_ts.getTime() > Date.now();
     if(this.future){
-        console.log("future start date dont show yet");
+        this.parent.console.log("notif " + this.getRecordId() + " has future start date dont show yet", "info");
     }
     return this.future;
 }
@@ -124,7 +124,7 @@ RCNotif.prototype.isExpired = function(){
     var notif_end_ts  = new Date(this.parent.getOffsetTime(notif_end_str));
     this.expired         = notif_end_ts.getTime() < Date.now();
     if(this.expired){
-        console.log("this is expired, it should clear out next refresh , for now , do not show it");
+        this.parent.console.log("notif " + this.getRecordId() + " is expired, it should clear out next refresh , for now hide it", "info");
     }
     return this.expired;
 }
@@ -134,20 +134,16 @@ RCNotif.prototype.displayOnPage = function(){
 
     //NEED TO CHECK CURRENT PAGE CONTEXT TO DETERMINE IF NOTIFS SHOULD DISPLAY (PROJECT, SURVEY, or SYSTEM)
     if( this.isProjectNotif() && urlParams.has('pid') && ( urlParams.get("pid") == this.getProjId() || this.getProjId() == "")  ){
-        // console.log("is project notif, this is project page, pid match OR pid empty", this.getProjId());
         return true;
     }else if( this.isSurveyNotif() && this.parent.getCurPage() == "surveys/index.php" ){
         const global_var_pid = pid; //UGH
         if(this.getProjId() == global_var_pid){
-            // console.log("is survey notif, this is survey page,  pid match ONLY", this.getProjId());
             return true;
         }
     }else if( this.isSystemNotif() && !urlParams.has('pid') ){
-        // console.log("is a system notif, is not a project or survey page, url has no 'PID' ");
         return true;
     }
 
-    // console.log("no notifs for this page", this.getRecordId(), this.getTarget(), this.isSurveyNotif());
     return false;
 }
 RCNotif.prototype.setDismissed = function(){
