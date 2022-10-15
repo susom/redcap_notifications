@@ -22,6 +22,23 @@
     cursor: pointer; /* Add a pointer on hover */
 }
 
+/*I hope #container is specific enough for surveys */
+#container #redcap_banner_notifs {
+    margin:5px auto;
+    width:96%;
+}
+
+#container .dismissable button {
+    display:none;
+}
+
+#container .dismiss_all {
+    display:none;
+}
+
+
+
+
 #redcap_banner_notifs{
     width:100%;
     max-width:800px;

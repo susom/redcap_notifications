@@ -278,15 +278,24 @@ RCNotifs.prototype.showNotifs = function(){
     this.buildNotifs();
 
     if(!this.isSnoozed("banner") && this.banner_jq && this.banner_jq.find(".notif.alert").length){
-        if(!$("#redcap_banner_notifs").length && $("#subheader").length){
-            $("#subheader").after(this.banner_jq);
+        if(!$("#redcap_banner_notifs").length && ($("#subheader").length || $("#container").length)){
+            if(this.getCurPage() == "surveys/index.php"){
+                $("#container").prepend(this.banner_jq);
+            }else{
+                $("#subheader").after(this.banner_jq);
+            }
         }
     }
 
     if(!this.isSnoozed("modal") && this.modal_jq && this.modal_jq.find(".notif.alert").length){
         var opaque  = $("<div>").prop("id","redcap_notifs_blocker");
         if(!$("#redcap_notifs_blocker").length){
-            $("body").append(opaque).append(this.modal_jq);;
+            $("body").append(opaque);
+            if(this.getCurPage() == "surveys/index.php"){
+                $("#container").append(this.modal_jq);
+            }else{
+                $("body").append(this.modal_jq);
+            }
         }
     }
 }
@@ -370,7 +379,7 @@ RCNotifs.prototype.buildNotifs = function(){
 
         if(!notif.isDismissed() && !notif.isFuture() && !notif.isExpired() && notif.displayOnPage()){
             //force surveys to be modals no matter what
-            var notif_type = notif.getTarget() == "survey" ? "modal" : notif.getType();
+            var notif_type = notif.getType();
             var notif_cont = notif.getTarget() == "survey" ? ".notif_cont_project" : ".notif_cont_"+notif.getTarget();
 
             html_cont[notif_type].find(notif_cont).append(notif.getJQUnit());
