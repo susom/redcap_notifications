@@ -7,6 +7,7 @@ require_once "emLoggerTrait.php";
 use DateTime;
 use REDCap;
 use Exception;
+use REDCapEntity\Page;
 
 class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 
@@ -80,7 +81,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @return void
      */
     function redcap_every_page_top($project_id) {
-
         try {
             // in case we are loading record homepage load its the record children if existed
             $this->injectREDCapNotifs();
@@ -454,6 +454,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      */
     public function injectREDCapNotifs()
     {
+        global $Proj;
+
         $ajax_endpoint  = $this->getUrl("pages/ajaxHandler.php");
         $notif_css      = $this->getUrl("assets/styles/redcap_notifs.css");
         $utility_js     = $this->getUrl("assets/scripts/utility.js");
@@ -466,13 +468,15 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $refresh_limit      = $this->getSystemSetting("redcap-notifs-refresh-limit") ?? self::DEFAULT_NOTIF_REFRESH_TIME_HOUR;
 
         $notifs_config = array(
-            "current_user"              => $cur_user,
             "ajax_endpoint"             => $ajax_endpoint,
             "redcap_csrf_token"         => $this->getCSRFToken(),
+            "current_user"              => $cur_user,
             "snooze_duration"           => $snooze_duration,
             "refresh_limit"             => $refresh_limit,
-            "invalidate_cache"          => $force_refresh_ts,
-            "current_page"              => PAGE
+
+            "current_page"              => PAGE,
+            "project_id"                => !empty($Proj) ? $Proj->project_id : null,
+            "dev_prod_status"           => !empty($Proj) ? $Proj->status : null
         );
         ?>
         <link rel="stylesheet" href="<?= $notif_css ?>">

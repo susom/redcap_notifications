@@ -37,26 +37,26 @@ var banner_container    = `<div id="redcap_banner_notifs" class="redcap_notifs">
                         </div>`;
 
 function RCNotifs(config) {
+    //init config
+    this.ajax_endpoint              = config.ajax_endpoint;
+    this.redcap_csrf_token          = config.redcap_csrf_token;
+    this.default_polling_int        = 30000; //30 seconds
+
     //read storage value
     this.redcap_notif_storage_key   = "redcapNotifications";
     this.user                       = config.current_user;
     this.redcap_notif_storage_key   += "_" + this.user;
 
-    this.ajax_endpoint              = config.ajax_endpoint;
-
-    this.redcap_csrf_token          = config.redcap_csrf_token;
-
     this.snooze_duration            = config.snooze_duration;
     this.refresh_limit              = config.refresh_limit;
-    this.force_refresh              = null;
-
     this.page                       = config.current_page;
+    this.project_id                 = config.project_id;
+    this.dev_prod_status            = config.dev_prod_status;
 
+    this.force_refresh              = null;
     this.console                    = console;//new Logging({"debug" : true, "error" : true});
 
     this.console.log("current page is : " + this.page, "debug");
-
-    this.default_polling_int        = 30000; //30 seconds
 
     //default empty "payload"
     this.payload = {
@@ -71,10 +71,11 @@ function RCNotifs(config) {
         ,"snooze_expire" : {"banner" : null, "modal" :null }
     };
 
+    //DOM and Notif Obj Cache
     this.banner_jq          = null;
     this.modal_jq           = null;
-
     this.notif_objs         = [];
+
 
     //load and parse notifs
     this.loadNotifs();
@@ -322,9 +323,9 @@ RCNotifs.prototype.buildNotifs = function(){
     html_cont["banner"].find(".dismiss_all").click(function(){
         // _this.console.log("dismmiss all dismissable banners", "debug");
         if(html_cont["banner"].find(".dismissable").length){
-            // _this.console.log("how many banner notifs to dimsmiss " + html_cont["banner"].find(".dismissable .notif_ftr button").length, "debug");
+            // _this.console.log("how many banner notifs to dimsmiss " + html_cont["banner"].find(".dismissable .notif_hdr button").length, "debug");
 
-            html_cont["banner"].find(".dismissable .notif_ftr button").each(function(){
+            html_cont["banner"].find(".dismissable .notif_hdr button").each(function(){
                 if($(this).is(":visible")){
                     $(this).trigger("click");
                 }
@@ -342,9 +343,9 @@ RCNotifs.prototype.buildNotifs = function(){
     html_cont["modal"].find(".dismiss_all").click(function(){
         // _this.console.log("dismmiss all dismissable modal", "debug");
         if(html_cont["modal"].find(".dismissable").length){
-            // _this.console.log("how many modal notifs to dismiss? " + html_cont["modal"].find(".dismissable .notif_ftr button").length, "debug");
+            // _this.console.log("how many modal notifs to dismiss? " + html_cont["modal"].find(".dismissable .notif_hdr button").length, "debug");
 
-            html_cont["modal"].find(".dismissable .notif_ftr button").each(function(){
+            html_cont["modal"].find(".dismissable .notif_hdr button").each(function(){
                 if($(this).is(":visible")){
                     $(this).trigger("click");
                 }
@@ -457,6 +458,7 @@ RCNotifs.prototype.buildNotifUnits = function(){
     }
 }
 
+
 //Snoozing utils
 RCNotifs.prototype.snoozeNotifs = function(notif_type){
     var snooze_expire = this.calcSnoozeExpiration();
@@ -500,7 +502,14 @@ RCNotifs.prototype.getCurPage = function(){
 RCNotifs.prototype.getLastUpdate = function(){
     return this.payload.server.updated ?? null;
 }
-
+RCNotifs.prototype.getProjectId = function(){
+    //IF on a project page, will have projectID otherwise null
+    return this.project_id;
+}
+RCNotifs.prototype.getDevProdStatus = function(){
+    //IF on a project page, will have devprod status of 0,1, null
+    return this.dev_prod_status;
+}
 //LOGGING
 RCNotifs.prototype.pushLogs = function(){
     var _this       = this;

@@ -2,31 +2,31 @@
 var notif_type = {};
 
 notif_type["banner"]    = `<div class="notif alert ban">
-                                <div class="notif_hdr"></div>
+                                <div class="notif_hdr"><button>Dismiss</button></div>
                                 <div class="notif_bdy">
                                     <h3 class="headline"></h3>
                                     <div class="lead"></div>
                                 </div>
-                                <div class="notif_ftr"><button>Dismiss</button></div>
+                                <div class="notif_ftr"></div>
                             </div>`;
 
 notif_type["modal"]     = `<div class="notif alert mod">
-                                <div class="notif_hdr"></div>
+                                <div class="notif_hdr"><button>Dismiss</button></div>
                                 <div class="notif_bdy">
                                     <h3 class="headline"></h3>
                                     <div class="lead"></div>
                                 </div>
-                                <div class="notif_ftr"><button>Dismiss</button></div>
+                                <div class="notif_ftr"></div>
                            </div>`;
 
 //TODO MODAL LOOKS BETTER AFTER ALL I THINK
 notif_type["growler"]     = `<div class="notif alert growl">
-                                <div class="notif_hdr"></div>
+                                <div class="notif_hdr"><button>Dismiss</button></div>
                                 <div class="notif_bdy">
                                     <h3 class="headline"></h3>
                                     <div class="lead"></div>
                                 </div>
-                                <div class="notif_ftr"><button>Dismiss</button></div>
+                                <div class="notif_ftr"></div>
                            </div>`;
 
 var default_icon = {}
@@ -54,14 +54,14 @@ RCNotif.prototype.buildNotif = function(){
     notif_jq.addClass(this.getTarget()).addClass("alert-" + notif_sufx);
 
     if(this.notif.note_end_dt != ""){
-        notif_jq.find(".notif_hdr").text("Expires on " + this.getEndDate());
+        notif_jq.find(".notif_ftr").text("Expires on " + this.getEndDate());
     }
     notif_jq.find(".notif_bdy .headline").text(this.getSubject());
     notif_jq.find(".notif_bdy .lead").text(this.getMessage());
 
     if(this.notif.hasOwnProperty("note_dismiss") && this.isDimissable()){
         notif_jq.addClass("dismissable");
-        notif_jq.find(".notif_ftr button").on("click", function(){
+        notif_jq.find(".notif_hdr button").on("click", function(){
             _this.dismissNotif();
         });
     }
@@ -129,18 +129,24 @@ RCNotif.prototype.isExpired = function(){
     return this.expired;
 }
 RCNotif.prototype.displayOnPage = function(){
-    const queryString   = window.location.search;
-    const urlParams     = new URLSearchParams(queryString);
+    // const queryString   = window.location.search;
+    // const urlParams     = new URLSearchParams(queryString);
+    var page_project_id = this.parent.getProjectId(); //if any
 
     //NEED TO CHECK CURRENT PAGE CONTEXT TO DETERMINE IF NOTIFS SHOULD DISPLAY (PROJECT, SURVEY, or SYSTEM)
-    if( this.isProjectNotif() && urlParams.has('pid') && ( urlParams.get("pid") == this.getProjId() || this.getProjId() == "")  ){
-        return true;
+    if( page_project_id && this.isProjectNotif() && !this.isExcluded() && this.isCorrectProjectStatus() ){
+        //project notif, page is in project context
+        if(page_project_id == this.getProjId() || this.getProjId() == ""){
+            //project notif, specified project id = current projoect context
+            return true;
+        }
     }else if( this.isSurveyNotif() && this.parent.getCurPage() == "surveys/index.php" ){
         const global_var_pid = pid; //UGH
         if(this.getProjId() == global_var_pid){
             return true;
         }
-    }else if( this.isSystemNotif() && !urlParams.has('pid') ){
+    }else if( this.isSystemNotif() && !page_project_id){
+        //TODO do we need to filter out project pages for system notifs?
         return true;
     }
 
@@ -185,23 +191,67 @@ RCNotif.prototype.getCustomIcon = function(){
     return this.notif.note_icon;
 }
 RCNotif.prototype.getTarget = function(){
-    var note_target = "system";
+    var note_target = [];
+
+    if(this.notif.note_display___system == "1"){
+        note_target.push("system");
+    }
+
     if(this.notif.note_display___project == "1"){
-        note_target = "project";
-    }else if(this.notif.note_display___survey == "1"){
-        note_target = "survey";
+        note_target.push("project");
+    }
+
+    if(this.notif.note_display___survey == "1"){
+        note_target.push("survey");
     }
 
     return note_target;
 }
+RCNotif.prototype.isExcluded = function(){
+    //check for project_exclusion
+    var page_project_id = this.parent.getProjectId(); //if any
+    var exclusion       = this.notif["project_exclusion"].replaceAll(" ", "");
+    exclusion           = exclusion.replaceAll("\r\n", ",");
+    exclusion           = exclusion.replaceAll("\r", ",");
+    exclusion           = exclusion.replaceAll("\n", ",");
+    var exclusion_arr   = exclusion.split(",");
+
+    if(page_project_id && $.inArray(page_project_id , exclusion_arr) > -1){
+        //project context and project_id is in exclusion list for this notif
+        return true;
+    }
+
+    return false;
+}
+RCNotif.prototype.isCorrectProjectStatus = function(){
+    //check for project_exclusion and dev prod status
+    var dev_prod_status = this.parent.getDevProdStatus();
+    var notif_dev_prod  = this.notif["project_status"] == "" ? null : parseInt(this.notif["project_status"]);
+
+    if( dev_prod_status ){
+        //PROD, ONLY
+        if(!notif_dev_prod){
+            return false;
+        }
+    }else{
+        //DEV
+        if(notif_dev_prod){
+            //page context DEV, notif is for prod only
+            return false;
+        }
+    }
+
+    //let it pass!
+    return true;
+}
 
 //shortCut Flags
 RCNotif.prototype.isProjectNotif = function(){
-    return this.getTarget() == "project";
+    return $.inArray( "project", this.getTarget())  >= 0;
 }
 RCNotif.prototype.isSystemNotif  = function(){
-    return this.getTarget() == "system";
+    return $.inArray( "system", this.getTarget())  >= 0;
 }
 RCNotif.prototype.isSurveyNotif  = function(){
-    return this.getTarget() == "survey";
+    return $.inArray( "survey", this.getTarget())  >= 0;
 }
