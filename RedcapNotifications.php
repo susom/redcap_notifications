@@ -15,6 +15,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 
     const DEFAULT_NOTIF_SNOOZE_TIME_MIN     = 5;
     const DEFAULT_NOTIF_REFRESH_TIME_HOUR   = 6;
+    const SURVEY_USER                       = '[survey respondent]';
 
     public function __construct() {
 		parent::__construct();
@@ -58,8 +59,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
                 }
             }
 
-
-
             // Save the last record update date/time
             $saveData = array(
                 array(
@@ -99,7 +98,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      */
     public function refreshNotifications($user, $since_last_update=null, $project_or_system_or_both=null) {
 
-        //TODO use $this->log() to Record MS diff to see how long these queries are taking
         $refreshStart = hrtime(true);
 
         $this->emDebug("In refreshNotifications: since last update: $since_last_update, note type: $project_or_system_or_both, for user $user");
@@ -117,15 +115,14 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         // Find which projects this user is a member - Some notifications may target all
         // Project Admins so we also need to check if this person is a project admin on
         // any project.
-        // If the user is empty, this must be a survey so skip the processing for projects and DCs and dismissed notifications
-        if (empty($user)) {
-            $allProjectslists = [];
-            $projAdminProjects = [];
+        // If the user is a survey respondent, skip the retrieval for dismissed notifications and DC
+        [$allProjectslists, $projAdminProjects] = $this->getAllProjectList($user, $now);
+        $this->emDebug("All project list: " . json_encode($allProjectslists));
+
+        if ($user == $this->SURVEY_USER) {
             $dcProjects = [];
             $dismissed = [];
         } else {
-            [$allProjectslists, $projAdminProjects] = $this->getAllProjectList($user, $now);
-            $this->emDebug("All project list: " . json_encode($allProjectslists));
 
             // Retrieve list of projects that this person is a Designated Contact
             $dcProjects = $this->getDCProjectList($user);
@@ -158,7 +155,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $notif_payload = array_merge($notif_proj_payload, $notif_sys_payload);
         $this->emDebug("Notification Payload:", json_encode($notif_payload));
 
-        // changes nanoseconds to milliseconds
+        // changes nanoseconds to milliseconds and stores in log
         $refreshEnd = hrtime(true);
         $refreshTime = ($refreshEnd - $refreshStart)/1e+6;
         REDCap::logEvent("The refresh payload for user $user took $refreshTime milliseconds");
