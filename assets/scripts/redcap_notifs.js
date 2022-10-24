@@ -128,6 +128,7 @@ RCNotifs.prototype.loadNotifs = function(){
 
     if( this.isStale() ){
         var _this = this;
+
         this.refreshFromServer().then(function(data) {
             // SUCCESFUL, parse Notifs and store in this.notif
             var response = decode_object(data);
@@ -171,6 +172,9 @@ RCNotifs.prototype.parseNotifs = function(data){
         //TODO DOES IT MAKE SENSE TO LOAD JUST NEW STUFF SINCE THE LAST UPDATE AND CONCATING , OR JUST PULL ENTIRELY NEW FRESH BATCH?
         this.force_refresh = false;
     }
+
+    //i just do this?
+    this.showNotifs();
 }
 RCNotifs.prototype.isStale = function(){
     if(this.force_refresh){
@@ -208,6 +212,8 @@ RCNotifs.prototype.getForceRefresh = function(){
                 if ($.inArray(notif_o.getRecordId(), force_record_ids) > -1){
                     var check_force = new Date(_this.getLastUpdate()) < new Date(forced_refresh_list[notif_o.getRecordId()]);
                     if(check_force){
+                        console.log("forced refresh");
+
                         //one match is enough to refresh entire payload
                         _this.force_refresh = true;
                         _this.console.log("Notif " + notif_o.getRecordId() + " needs force refresh at " + forced_refresh_list[notif_o.getRecordId()] , "info" );
@@ -524,6 +530,7 @@ RCNotifs.prototype.pushLogs = function(){
     var _this       = this;
 
     //TODO LATER ON TURN THIS BACK ON
+    return;
     var all_logs    = {"hi":"bye"};//_this.console.getAllLogs();
 
     console.log("all logs", all_logs);
