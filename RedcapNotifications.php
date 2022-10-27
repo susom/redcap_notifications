@@ -464,6 +464,13 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $notif_js       = $this->getUrl("assets/scripts/redcap_notif.js");
         $cur_user       = $this->clean_user($this->getUser()->getUsername() );
 
+        //TODO figure out why nonsignedin/incognito surveys can't do ajax to get notifs
+        $survey_notif_payload = null;
+        if($cur_user == "survey_respondent"){
+            $all_notifications      = $this->refreshNotifications($this->getUser()->getUsername(), null, 'project');
+            $survey_notif_payload   = json_encode($all_notifications, JSON_THROW_ON_ERROR);
+        }
+
         $snooze_duration    = $this->getSystemSetting("redcap-notifs-snooze-minutes") ?? self::DEFAULT_NOTIF_SNOOZE_TIME_MIN;
         $refresh_limit      = $this->getSystemSetting("redcap-notifs-refresh-limit") ?? self::DEFAULT_NOTIF_REFRESH_TIME_HOUR;
 
@@ -476,7 +483,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 
             "current_page"              => PAGE,
             "project_id"                => !empty($Proj) ? $Proj->project_id : null,
-            "dev_prod_status"           => !empty($Proj) ? $Proj->status : null
+            "dev_prod_status"           => !empty($Proj) ? $Proj->status : null,
+            "survey_notif_payload"      => $survey_notif_payload
         );
         ?>
         <link rel="stylesheet" href="<?= $notif_css ?>">

@@ -53,6 +53,9 @@ function RCNotifs(config) {
     this.project_id                 = config.project_id;
     this.dev_prod_status            = config.dev_prod_status;
 
+    //TODO temporary till we figure out the incognito sruvey ajax 
+    this.survey_payload             = config.survey_notif_payload;
+
     this.force_refresh              = null;
     this.console                    = console;//new Logging({"debug" : true, "error" : true});
 
@@ -128,7 +131,6 @@ RCNotifs.prototype.loadNotifs = function(){
 
     if( this.isStale() ){
         var _this = this;
-
         this.refreshFromServer().then(function(data) {
             // SUCCESFUL, parse Notifs and store in this.notif
             var response = decode_object(data);
@@ -149,6 +151,11 @@ RCNotifs.prototype.parseNotifs = function(data){
     var client_date_time    = getClientDateTime();
     var client_offset       = getDifferenceInHours( new Date(data["server_time"]) , new Date(client_date_time)) + "h";
 
+    //TODO TEMPORARY UNTIL FIGURE OUT AJAX
+    if(this.survey_payload){
+        data = JSON.parse(this.survey_payload);
+    }
+
     this.payload = {
         "server"   : {"updated" : data["server_time"] }
         ,"client"   : {
@@ -166,7 +173,10 @@ RCNotifs.prototype.parseNotifs = function(data){
     this.notif_objs = [];
     this.buildNotifUnits();
 
-    localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
+    //TODO TEMPORARY UNTIL FIGURE OUT AJAX
+    if(!this.survey_payload){
+        localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
+    }
 
     if(this.force_refresh){
         //TODO DOES IT MAKE SENSE TO LOAD JUST NEW STUFF SINCE THE LAST UPDATE AND CONCATING , OR JUST PULL ENTIRELY NEW FRESH BATCH?
