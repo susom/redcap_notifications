@@ -8,6 +8,11 @@
 	"documentation": "README.md",
 
 	"authors": [
+        {
+            "name": "Irvin Szeto",
+            "email": "irvins@stanford.edu",
+            "institution": "Stanford University"
+        },
 		{
 			"name": "Lee Ann Yasukawa",
 			"email": "yasukawa@stanford.edu",
