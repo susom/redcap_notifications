@@ -53,7 +53,7 @@ function RCNotifs(config) {
     this.project_id                 = config.project_id;
     this.dev_prod_status            = config.dev_prod_status;
 
-    //TODO temporary till we figure out the incognito sruvey ajax 
+    //TODO temporary till we figure out the incognito sruvey ajax
     this.survey_payload             = config.survey_notif_payload;
 
     this.force_refresh              = null;

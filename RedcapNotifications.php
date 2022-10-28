@@ -453,6 +453,11 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     {
         global $Proj;
 
+        if (!defined("USERID")) {
+            $this->emDebug('USer NOT signed in yet, so dont bother.  maybe they bookmarked a project page, either way catch them on next page load');
+            return;
+        }
+
         $ajax_endpoint  = $this->getUrl("pages/ajaxHandler.php");
         $notif_css      = $this->getUrl("assets/styles/redcap_notifs.css");
         $utility_js     = $this->getUrl("assets/scripts/utility.js");

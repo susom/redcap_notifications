@@ -57,7 +57,13 @@ RCNotif.prototype.buildNotif = function(){
         notif_jq.find(".notif_ftr").text("Expires on " + this.getEndDate());
     }
     notif_jq.find(".notif_bdy .headline").text(this.getSubject());
-    notif_jq.find(".notif_bdy .lead").text(this.getMessage());
+
+    if(this.getMessage()){
+        notif_jq.find(".notif_bdy .lead").text(this.getMessage());
+    }else{
+        notif_jq.find(".notif_bdy .lead").remove();
+    }
+
 
     if(this.notif.hasOwnProperty("note_dismiss") && this.isDimissable()){
         notif_jq.addClass("dismissable");
