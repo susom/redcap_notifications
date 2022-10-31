@@ -298,7 +298,14 @@ RCNotifs.prototype.showNotifs = function(){
             if(this.getCurPage() == "surveys/index.php"){
                 $("#container").prepend(this.banner_jq);
             }else{
-                $("#subheader").after(this.banner_jq);
+                if($("#subheader").length){
+                    $("#subheader").after(this.banner_jq);
+                }else if($("#control_center_window").length){
+                    $("#control_center_window").prepend(this.banner_jq);
+                }else if($("#pagecontent .navbar").length){
+                    $("#pagecontent .navbar").after(this.banner_jq);
+                }
+
             }
         }
     }
