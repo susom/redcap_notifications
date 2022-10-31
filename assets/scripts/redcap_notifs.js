@@ -427,7 +427,6 @@ RCNotifs.prototype.dismissNotifs = function(){
             "redcap_csrf_token" : this.redcap_csrf_token
         }
 
-        return;
         $.ajax({
             url: this.ajax_endpoint,
             method: 'POST',

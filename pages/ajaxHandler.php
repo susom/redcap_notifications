@@ -7,6 +7,12 @@ use GuzzleHttp\Exception\GuzzleException;
 use REDCap;
 use DateTime;
 
+if (!defined("USERID")) {
+    $module->emDebug('USer NOT signed in yet, so dont bother.  maybe they bookmarked a project page, either way catch them on next page load');
+    return;
+}
+
+
 function isValid($date, $format = 'Y-m-d'){
     $dt = DateTime::createFromFormat($format, $date);
     return $dt && $dt->format($format) === $date;
