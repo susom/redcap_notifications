@@ -167,7 +167,7 @@ RCNotifs.prototype.parseNotifs = function(data){
         ,"notifs" : data["notifs"]
         ,"snooze_expire" : {"banner" : null, "modal" :null }
     };
-    this.console.log("fresh load from server" + JSON.stringify(this.payload), "info");
+    // this.console.log("fresh load from server" + JSON.stringify(this.payload), "info");
 
     //fresh payload, need to clear out notifs cache.
     this.notif_objs = [];
@@ -221,12 +221,13 @@ RCNotifs.prototype.getForceRefresh = function(){
                 var notif_o = _this.notif_objs[i];
                 if ($.inArray(notif_o.getRecordId(), force_record_ids) > -1){
                     var check_force = new Date(_this.getLastUpdate()) < new Date(forced_refresh_list[notif_o.getRecordId()]);
-                    if(check_force){
-                        console.log("forced refresh");
 
+                    if(check_force){
                         //one match is enough to refresh entire payload
                         _this.force_refresh = true;
                         _this.console.log("Notif " + notif_o.getRecordId() + " needs force refresh at " + forced_refresh_list[notif_o.getRecordId()] , "info" );
+
+                        _this.loadNotifs();
                         break;
                     }
                 }
@@ -268,6 +269,7 @@ RCNotifs.prototype.pollForceRefresh = function(){
         var payload_last_update = _this.getLastUpdate();
 
         if(payload_last_update){
+
             _this.getForceRefresh();
         }
     }, this.default_polling_int);
