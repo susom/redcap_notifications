@@ -7,11 +7,16 @@ use GuzzleHttp\Exception\GuzzleException;
 use REDCap;
 use DateTime;
 
-if (!defined("USERID")) {
-    $module->emDebug('USer NOT signed in yet, so dont bother.  maybe they bookmarked a project page, either way catch them on next page load');
-    return;
-}
+//if (!defined("USERID")) {
+//    $module->emDebug('USer NOT signed in yet, so dont bother.  maybe they bookmarked a project page, either way catch them on next page load');
+//    return;
+//}
 
+$module->emDebug("ajax Handler", $_POST);
+
+if(in_array($module->getUser()->getUsername(), $module->getCustomUseridLogList())){
+    $module->emDebug("this is a problem user show custom logs", $module->getUser()->getUsername());
+}
 
 function isValid($date, $format = 'Y-m-d'){
     $dt = DateTime::createFromFormat($format, $date);
@@ -28,8 +33,10 @@ switch($action){
             $proj_or_sys_post   = filter_var($_POST['proj_or_sys'], FILTER_SANITIZE_STRING);
             $last_updated       = isValid($last_updated_post, 'Y-m-d H:i:s') ? $last_updated_post : null;
             $project_or_system  = $proj_or_sys_post ?? null;
+            $project_id         = filter_var($_POST['project_id'], FILTER_SANITIZE_NUMBER_INT);
+            $project_id         = $project_id ?? null;
 
-            $all_notifications  = $module->refreshNotifications($module->getUser()->getUsername(), $last_updated, $project_or_system);
+            $all_notifications  = $module->refreshNotifications($module->getUser()->getUsername(), $project_id,  $last_updated, $project_or_system);
             $result             = json_encode($all_notifications, JSON_THROW_ON_ERROR);
             $module->emDebug($last_updated_post, $proj_or_sys_post,$result);
             echo htmlentities($result, ENT_QUOTES);

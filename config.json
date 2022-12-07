@@ -90,6 +90,12 @@
             "type": "text"
         },
         {
+            "key": "user-specific-log-list",
+            "name": "<b>Comma separated List of UserIDs to trigger custom debugs</b><i></i> We are tryign to figure out why a subset of userids are triggering callbacks every 30 seconds instead of honoring the 6 hour grace time",
+            "required": false,
+            "type": "note"
+        },
+        {
             "key": "notification-pid",
             "name": "<b>Notifications PID</b><i></i> Project ID where notifications are created and stored.",
             "required": true,

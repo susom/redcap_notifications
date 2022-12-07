@@ -96,7 +96,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @param $project_or_system_or_both
      * @return array|null
      */
-    public function refreshNotifications($user, $since_last_update=null, $project_or_system_or_both=null) {
+    public function refreshNotifications($user, $project_id=null, $since_last_update=null, $project_or_system_or_both=null) {
 
         $refreshStart = hrtime(true);
 
@@ -453,9 +453,13 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     {
         global $Proj;
 
-        if (!defined("USERID")) {
-            $this->emDebug('USer NOT signed in yet, so dont bother.  maybe they bookmarked a project page, either way catch them on next page load');
-            return;
+//        if (!defined("USERID")) {
+//            $this->emDebug('USer NOT signed in yet, so dont bother.  maybe they bookmarked a project page, either way catch them on next page load');
+//            return;
+//        }
+
+        if(in_array($this->getUser()->getUsername(), $this->getCustomUseridLogList())){
+            $this->emDebug("this is a problem user show custom logs", $this->getUser()->getUsername());
         }
 
         $ajax_endpoint  = $this->getUrl("pages/ajaxHandler.php");
@@ -469,6 +473,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         //TODO figure out why nonsignedin/incognito surveys can't do ajax to get notifs
         $survey_notif_payload = null;
         if($cur_user == "survey_respondent"){
+            $this->emDebug("is survey respondent");
             $all_notifications      = $this->refreshNotifications($this->getUser()->getUsername(), null, 'project');
             $survey_notif_payload   = json_encode($all_notifications, JSON_THROW_ON_ERROR);
         }
@@ -543,5 +548,20 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 
         $existing_arr[$record] = $last_ts;
         $this->setSystemSetting("force_refresh_ts", json_encode($existing_arr));
+    }
+
+
+    /**
+     * custom comma delimited list of userids to debug for select subset of userids to try to find out why they constantly callback for notif payloads
+     *
+     * @param
+     * @return arr
+     */
+    public function getCustomUseridLogList(){
+        $temp               = $this->getSystemSetting("user-specific-log-list");
+        $temp               = str_replace(" ", "", $temp);
+        $custom_log_list    = empty($temp) ? [] : explode(",", $temp);
+
+        return $custom_log_list;
     }
 }

@@ -106,6 +106,7 @@ RCNotifs.prototype.refreshFromServer = function(notif_type){
          "action"           : "refresh"
         ,"last_updated"     : this.force_refresh ? null : this.getLastUpdate()
         ,"redcap_csrf_token": this.redcap_csrf_token
+        ,"project_id"       : this.project_id
         ,"proj_or_sys"      : notif_type ?? "both"
     };
 
@@ -131,10 +132,12 @@ RCNotifs.prototype.loadNotifs = function(){
 
     if( this.isStale() ){
         var _this = this;
+
         this.refreshFromServer().then(function(data) {
             // SUCCESFUL, parse Notifs and store in this.notif
             var response = decode_object(data);
             if(response){
+                console.log("ajax 'works' but doesnt actually hit back end.. and returns error 404 page");
                 _this.parseNotifs(response);
             }
         }).catch(function(err) {
