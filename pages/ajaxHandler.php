@@ -14,9 +14,7 @@ use DateTime;
 
 $module->emDebug("ajax Handler", $_POST);
 
-if(in_array($module->getUser()->getUsername(), $module->getCustomUseridLogList())){
-    $module->emDebug("this is a problem user show custom logs", $module->getUser()->getUsername());
-}
+$module->emDebugForCustomUseridList("this", "is", "not", array("working", "for", "this", "user"));
 
 function isValid($date, $format = 'Y-m-d'){
     $dt = DateTime::createFromFormat($format, $date);

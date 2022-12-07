@@ -458,9 +458,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 //            return;
 //        }
 
-        if(in_array($this->getUser()->getUsername(), $this->getCustomUseridLogList())){
-            $this->emDebug("this is a problem user show custom logs", $this->getUser()->getUsername());
-        }
+        $this->emDebugForCustomUseridList("this", "is", "not", array("working", "for", "this", "user"));
 
         $ajax_endpoint  = $this->getUrl("pages/ajaxHandler.php");
         $notif_css      = $this->getUrl("assets/styles/redcap_notifs.css");
@@ -552,16 +550,20 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 
 
     /**
-     * custom comma delimited list of userids to debug for select subset of userids to try to find out why they constantly callback for notif payloads
+     * display emdebugs only for custom comma delimited list of userids to debug for select subset of userids to try to find out why they constantly callback for notif payloads
      *
      * @param
-     * @return arr
+     * @return void
      */
-    public function getCustomUseridLogList(){
+    public function emDebugForCustomUseridList(){
         $temp               = $this->getSystemSetting("user-specific-log-list");
         $temp               = str_replace(" ", "", $temp);
         $custom_log_list    = empty($temp) ? [] : explode(",", $temp);
 
-        return $custom_log_list;
+        $cur_user = $this->getUser()->getUsername();
+        if(in_array($cur_user, $custom_log_list)){
+            $args = func_get_args();
+            $this->emDebug("Debug for $cur_user", $args);
+        }
     }
 }
