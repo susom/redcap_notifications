@@ -99,7 +99,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      */
     public function refreshNotifications($pid, $user, $project_id=null, $since_last_update=null, $project_or_system_or_both=null) {
 
-        $project_or_system_or_both = 'both';
         $refreshStart = hrtime(true);
 
         $this->emDebug("In refreshNotifications: pid $pid, since last update: $since_last_update, note type: $project_or_system_or_both, for user $user");
