@@ -15,7 +15,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 
     const DEFAULT_NOTIF_SNOOZE_TIME_MIN     = 5;
     const DEFAULT_NOTIF_REFRESH_TIME_HOUR   = 6;
-    const SURVEY_USER                       = '[survey respondent]';
+    private $SURVEY_USER                    = '[survey respondent]';
 
     public function __construct() {
 		parent::__construct();
@@ -91,16 +91,18 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     /**
      * This function refreshes a users notifications and stores it in the cookie called redcapNotifications
      *
+     * @param $pid
      * @param $user
      * @param $since_last_update
      * @param $project_or_system_or_both
      * @return array|null
      */
-    public function refreshNotifications($user, $project_id=null, $since_last_update=null, $project_or_system_or_both=null) {
+    public function refreshNotifications($pid, $user, $project_id=null, $since_last_update=null, $project_or_system_or_both=null) {
 
+        $project_or_system_or_both = 'both';
         $refreshStart = hrtime(true);
 
-        $this->emDebug("In refreshNotifications: since last update: $since_last_update, note type: $project_or_system_or_both, for user $user");
+        $this->emDebug("In refreshNotifications: pid $pid, since last update: $since_last_update, note type: $project_or_system_or_both, for user $user");
         if (empty($project_or_system_or_both)) {
             return null;
         }
@@ -115,23 +117,27 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         // Find which projects this user is a member - Some notifications may target all
         // Project Admins so we also need to check if this person is a project admin on
         // any project.
-        // If the user is a survey respondent, skip the retrieval for dismissed notifications and DC
-        [$allProjectslists, $projAdminProjects] = $this->getAllProjectList($user, $now);
-        $this->emDebug("All project list: " . json_encode($allProjectslists));
-
-        if ($user == $this->SURVEY_USER) {
+        if ($user === $this->SURVEY_USER) {
+            // If the user is a survey respondent, skip the retrieval for dismissed notifications and DC
+            $this->emDebug("This is a survey respondant: " . $user);
+            $allProjectslists = array($pid);
             $dcProjects = [];
             $dismissed = [];
+            $projAdminProjects = [];
         } else {
 
             // Retrieve list of projects that this person is a Designated Contact
+            [$allProjectslists, $projAdminProjects] = $this->getAllProjectList($user, $now);
             $dcProjects = $this->getDCProjectList($user);
-            $this->emDebug("Designated Contact projects: " . json_encode($dcProjects));
 
             // Get list of notifications that have already been dismissed and should not be displayed again
             $dismissed          = $this->getDismissedNotifications($dismissal_pid, $user);
-            $this->emDebug("Dismissed Notifications: " . json_encode($dismissed));
         }
+
+        $this->emDebug("All project list: " . json_encode($allProjectslists));
+        $this->emDebug("Designated Contact projects: " . json_encode($dcProjects));
+        $this->emDebug("Project Admin Notifications: " . json_encode($projAdminProjects));
+        $this->emDebug("Dismissed Notifications: " . json_encode($dismissed));
 
         $notif_proj_payload = array();
         $notif_sys_payload = array();
@@ -140,16 +146,16 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         if ($project_or_system_or_both == 'project' || $project_or_system_or_both == 'both') {
 
             // Pull all project level notifications
-            $notif_proj_payload    = $this->getProjectNotifications($notification_pid, $now, $allProjectslists, $dcProjects,
-                            $projAdminProjects, $dismissed, $since_last_update);
+            $notif_proj_payload    = $this->getProjectNotifications($user, $notification_pid, $now, $allProjectslists,
+                $dcProjects, $projAdminProjects, $dismissed, $since_last_update, $pid);
         }
 
         // Only retrieve system notifications if asked for
         if ($project_or_system_or_both == 'system' || $project_or_system_or_both == 'both') {
 
             // Pull all system notifications
-            $notif_sys_payload     = $this->getSystemNotifications($notification_pid, $now, $dcProjects,
-                $projAdminProjects, $dismissed, $since_last_update);
+            $notif_sys_payload     = $this->getSystemNotifications($user, $notification_pid, $now, $dcProjects,
+                $projAdminProjects, $dismissed, $since_last_update, $pid);
         }
 
         $notif_payload = array_merge($notif_proj_payload, $notif_sys_payload);
@@ -253,22 +259,32 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * Retrieves list of system notifications for this user. Displays each notification once even if there
      * are multiple instances of it.
      *
+     * @param $user
      * @param $notification_pid
      * @param $now
      * @param $dcProjects
      * @param $proj_admin
      * @param $dismissed
      * @param $since_last_update
+     * @param $pid
      * @return array
      */
-    private function getSystemNotifications($notification_pid, $now, $dcProjects, $projAdminProjects, $dismissed, $since_last_update)  {
-        //TODO WHAT WRONG WITH SYNTAX ADDING "OR [note_end_dt] == ''" ????
+    private function getSystemNotifications($user, $notification_pid, $now, $dcProjects, $projAdminProjects,
+                                            $dismissed, $since_last_update, $pid)  {
+
         // We are first pulling 'general' notifications that are not project dependant
-        $filter = "([note_project_id] = '') and ([note_end_dt] > '" . $now . "')" .
-                    " and ([notifications_complete] = '2')";
-        if (!empty($since_last_update)) {
-            $filter .= " and ([note_last_update_time] > '" . $since_last_update . "')";
+        if ($this->SURVEY_USER == $user) {
+            $filter = "([note_project_id] = '') and ([notifications_complete] = '2')" .
+                " and (([note_end_dt] > '" . $now . "') or ([note_end_dt] = ''))" .
+                " and ([note_display(survey)] = '1')";
+        } else {
+            $filter = "([note_project_id] = '') and ([notifications_complete] = '2')" .
+                " and (([note_end_dt] > '" . $now . "') or ([note_end_dt] = ''))";
+            if (!empty($since_last_update)) {
+                $filter .= " and ([note_last_update_time] > '" . $since_last_update . "')";
+            }
         }
+        $this->emDebug("System Filter: " . $filter);
 
         // Retrieve system notification list
         $sys_notifications = $this->getNotificationList($notification_pid, $filter);
@@ -278,46 +294,61 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $repeatMsg = array();
         foreach($sys_notifications as $notification) {
 
-            // if this alert record_id is in the dismissed list, don't display anymore
-            if (!in_array($notification['record_id'], $dismissed)) {
-
-                // Check to see if this is a repeat message.  We don't want to show the same message multiple times
-                if (!in_array($notification['note_name'], $repeatMsg)) {
-                    $repeatMsg[] = $notification['note_name'];
-
-                    // This is a unique notification that was not dismissed, add it if it fits my user category
-                    if ($notification['note_user_types'] == 'all') {
-                        // If this notification is for everyone, add it to my active notification list
+            if ($this->SURVEY_USER == $user) {
+                if (empty($repeatMsg[$notification['note_name']])) {
+                    // Check the exclusion list to see if our project is excluded
+                    $excluded = $this->thisProjectExcluded($pid, $notification['project_exclusion']);
+                    if (!$excluded) {
+                        $repeatMsg[$notification['note_name']] = 1;
                         $sysNotifications[] = $notification;
+                    }
+                } else {
+                    $repeatMsg[$notification['note_name']]++;
+                }
 
-                    } else if ($notification['note_user_types'] = 'admin' and !empty($projAdminProjects)) {
+            } else {
 
-                        // If this notification is for project admins and I am a project admin on a project not on the
-                        // Project exclusion list
-                        if (!empty($notification['project_exclusion'])) {
-                            $filteredProjList = $this->excludeProjects($projAdminProjects, $notification['project_exclusion']);
-                        } else {
-                            $filteredProjList = $projAdminProjects;
-                        }
+                // if this alert record_id is in the dismissed list, don't display anymore
+                if (!in_array($notification['record_id'], $dismissed)) {
 
-                        if (!empty($filteredProjList)) {
+                    // Check to see if this is a repeat message.  We don't want to show the same message multiple times
+                    if (!in_array($notification['note_name'], $repeatMsg)) {
+                        $repeatMsg[] = $notification['note_name'];
+
+                        // This is a unique notification that was not dismissed, add it if it fits my user category
+                        if ($notification['note_user_types'] == 'all') {
+                            // If this notification is for everyone, add it to my active notification list
                             $sysNotifications[] = $notification;
+
+                        } else if ($notification['note_user_types'] = 'admin' and !empty($projAdminProjects)) {
+
+                            // If this notification is for project admins and I am a project admin on a project not on the
+                            // Project exclusion list
+                            if (!empty($notification['project_exclusion'])) {
+                                $filteredProjList = $this->excludeProjects($projAdminProjects, $notification['project_exclusion']);
+                            } else {
+                                $filteredProjList = $projAdminProjects;
+                            }
+
+                            if (!empty($filteredProjList)) {
+                                $sysNotifications[] = $notification;
+                            }
+
+                        } else if ($notification['note_user_types'] = 'dc' and !empty($dcProjects)) {
+
+                            // If this notification is for designated contacts and I am a designated contact not on the
+                            // project exclusion list, add it to my list
+                            if (!empty($notification['project_exclusion'])) {
+                                $filteredDCList = $this->excludeProjects($dcProjects, $notification['project_exclusion']);
+                            } else {
+                                $filteredDCList = $dcProjects;
+                            }
+
+                            if (!empty($filteredDCList)) {
+                                $sysNotifications[] = $notification;
+                            }
+
                         }
-
-                    } else if ($notification['note_user_types'] = 'dc' and !empty($dcProjects)) {
-
-                        // If this notification is for designated contacts and I am a designated contact not on the
-                        // project exclusion list, add it to my list
-                        if (!empty($notification['project_exclusion'])) {
-                            $filteredDCList = $this->excludeProjects($dcProjects, $notification['project_exclusion']);
-                        } else {
-                            $filteredDCList = $dcProjects;
-                        }
-
-                        if (!empty($filteredDCList)) {
-                            $sysNotifications[] = $notification;
-                        }
-
                     }
                 }
             }
@@ -361,11 +392,26 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         return array_diff($projects, $excludedProjs);
     }
 
+    /**
+     * This function will check the list of excluded projects to see if this project
+     * should be included in the notification or not.
+     *
+     * @param $project
+     * @param $excludeList
+     * @return bool
+     */
+    private function thisProjectExcluded($project, $excludeList) {
+
+        // Convert excluded project list into array and delete those projects from the Admin Project list
+        $excludedProjs = explode(',', $excludeList);
+        return in_array($project, $excludedProjs);
+    }
 
     /**
      * Retrieves a list of project level notifications for this user. Displays the same notification once
      * even if there are many instances of it.
      *
+     * @param $user
      * @param $notification_pid
      * @param $now
      * @param $allProjectslists
@@ -373,15 +419,25 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @param $projAdminProjects
      * @param $dismissed
      * @param $since_last_update
+     * @param $pid
      * @return array
      */
-    private function getProjectNotifications($notification_pid, $now, $allProjectslists, $dcProjects, $projAdminProjects, $dismissed, $since_last_update) {
-        //TODO WHAT WRONG WITH SYNTAX ADDING "OR [note_end_dt] == ''" ????
-        // Now check for project level notifications that are active and we are a member
-        $filter = "([note_project_id] <> '') and ([note_end_dt] > '" . $now . "') and ([notifications_complete] = '2' || true) ";
-        if (!empty($since_last_update)) {
-            $filter .= " and ([note_last_update_time] > '" . $since_last_update . "') ";
+    private function getProjectNotifications($user, $notification_pid, $now, $allProjectslists, $dcProjects,
+                                             $projAdminProjects, $dismissed, $since_last_update, $pid) {
+
+        if ($user == $this->SURVEY_USER) {
+            // This user is a survey respondent.  Only look for notifications that should be displayed on the survey page
+            $filter = "([notifications_complete] = '2') and ([note_display(survey)] = '1')" .
+                " and (([note_end_dt] > '" . $now . "') or ([note_end_dt] = '')) and ([note_project_id] = $pid)";
+        } else {
+            // Now check for project level notifications that are active and we are a member
+            $filter = "([note_project_id] <> '') and ([notifications_complete] = '2') " .
+                " and (([note_end_dt] > '" . $now . "') or ([note_end_dt] = ''))";
+            if (!empty($since_last_update)) {
+                $filter .= " and ([note_last_update_time] > '" . $since_last_update . "') ";
+            }
         }
+        $this->emDebug("This is the Project filter: " . $filter);
 
         // Retrieve project notification list
         $projNotificationsList = $this->getNotificationList($notification_pid, $filter);
@@ -390,32 +446,45 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $repeatMsg          = array();
         foreach($projNotificationsList as $notification) {
 
-            // If this alert record_id is in the dismissed list, don't display anymore. Also, make sure we are a member
-            // of the project before adding to our list
-            if (!in_array($notification['record_id'], $dismissed) and in_array($notification['note_project_id'], $allProjectslists)) {
-
-                // Check to see if this is a repeat message.  We do not want to show the same message multiple times.
-                // Since these messages are project based, check the message Subject and the project id
+            if ($user == $this->SURVEY_USER) {
+                // For survey users, we need to see which notifications may pertain to our survey
+                // Make sure there are no repeats
                 if (empty($repeatMsg[$notification['note_name']][$notification['note_project_id']])) {
                     $repeatMsg[$notification['note_name']][$notification['note_project_id']] = 1;
-
-                    // This notification for this project id has been entered yet, add it to my project notification list
-                    if ($notification['note_user_types'] == 'all') {
-                        // If this notification is for everyone, add it to my active notification list
-                        $projNotifications[] = $notification;
-
-                    } else if ($notification['note_user_types'] = 'admin' and
-                        in_array($notification['note_project_id'], $projAdminProjects)) {
-                        // If this notification is for project admins and I am a project admin on this project, add it to my list
-                        $projNotifications[] = $notification;
-
-                    } else if ($notification['note_user_types'] = 'dc' and
-                        in_array($notification['note_project_id'], $dcProjects)) {
-                        // If this notification is for designated contacts and I am a designated contact for this project, add it to my list
-                        $projNotifications[] = $notification;
-                    }
+                    $projNotifications[] = $notification;
                 } else {
                     $repeatMsg[$notification['note_name']][$notification['note_project_id']]++;
+                }
+
+            } else {
+                // This notifications are for specific users.
+                // If this alert record_id is in the dismissed list, don't display anymore. Also, make sure we are a member
+                // of the project before adding to our list
+                if (!in_array($notification['record_id'], $dismissed) and in_array($notification['note_project_id'], $allProjectslists)) {
+
+                    // Check to see if this is a repeat message.  We do not want to show the same message multiple times.
+                    // Since these messages are project based, check the message Subject and the project id
+                    if (empty($repeatMsg[$notification['note_name']][$notification['note_project_id']])) {
+                        $repeatMsg[$notification['note_name']][$notification['note_project_id']] = 1;
+
+                        // This notification for this project id has been entered yet, add it to my project notification list
+                        if ($notification['note_user_types'] == 'all') {
+                            // If this notification is for everyone, add it to my active notification list
+                            $projNotifications[] = $notification;
+
+                        } else if ($notification['note_user_types'] = 'admin' and
+                            in_array($notification['note_project_id'], $projAdminProjects)) {
+                            // If this notification is for project admins and I am a project admin on this project, add it to my list
+                            $projNotifications[] = $notification;
+
+                        } else if ($notification['note_user_types'] = 'dc' and
+                            in_array($notification['note_project_id'], $dcProjects)) {
+                            // If this notification is for designated contacts and I am a designated contact for this project, add it to my list
+                            $projNotifications[] = $notification;
+                        }
+                    } else {
+                        $repeatMsg[$notification['note_name']][$notification['note_project_id']]++;
+                    }
                 }
             }
         }
@@ -471,8 +540,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         //TODO figure out why nonsignedin/incognito surveys can't do ajax to get notifs
         $survey_notif_payload = null;
         if($cur_user == "survey_respondent"){
-            $this->emDebug("is survey respondent");
-            $all_notifications      = $this->refreshNotifications($this->getUser()->getUsername(), null, 'project');
+            $pid = !empty($Proj) ? $Proj->project_id : null;
+            $all_notifications      = $this->refreshNotifications($pid, $this->getUser()->getUsername(), null, 'project');
             $survey_notif_payload   = json_encode($all_notifications, JSON_THROW_ON_ERROR);
         }
 

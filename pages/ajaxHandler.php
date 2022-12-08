@@ -34,7 +34,7 @@ switch($action){
             $project_id         = filter_var($_POST['project_id'], FILTER_SANITIZE_NUMBER_INT);
             $project_id         = $project_id ?? null;
 
-            $all_notifications  = $module->refreshNotifications($module->getUser()->getUsername(), $project_id,  $last_updated, $project_or_system);
+            $all_notifications  = $module->refreshNotifications($project_id, $module->getUser()->getUsername(), $last_updated, $project_or_system);
             $result             = json_encode($all_notifications, JSON_THROW_ON_ERROR);
             $module->emDebug($last_updated_post, $proj_or_sys_post,$result);
             echo htmlentities($result, ENT_QUOTES);
