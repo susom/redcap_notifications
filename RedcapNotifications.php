@@ -18,6 +18,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 
     public function __construct() {
 		parent::__construct();
+        $this->emDebug("how do i reference php private variables?", $this->SURVEY_USER);
 	}
 
     /**
@@ -81,7 +82,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     function redcap_every_page_top($project_id) {
         try {
             // in case we are loading record homepage load its the record children if existed
-            $this->injectREDCapNotifsToo();
+            $this->injectREDCapNotifs();
         } catch (\Exception $e) {
             // TODO routine to handle exception , probably nothing, catch them next time.
         }
@@ -516,90 +517,31 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @param $alerts
      * @return array
      */
-    public function injectREDCapNotifs()
-    {
+    public function injectREDCapNotifs(){
         global $Proj;
 
-//        if (!defined("USERID")) {
-//            $this->emDebug('USer NOT signed in yet, so dont bother.  maybe they bookmarked a project page, either way catch them on next page load');
-//            return;
-//        }
-
-//        $this->emDebugForCustomUseridList("this", "is", "not", array("working", "for", "this", "user"));
-
-        $ajax_endpoint  = $this->getUrl("pages/ajaxHandler.php");
-        $notif_css      = $this->getUrl("assets/styles/redcap_notifs.css");
-        $utility_js     = $this->getUrl("assets/scripts/utility.js");
-        $logging_js     = $this->getUrl("assets/scripts/logging.js");
-        $notifs_js      = $this->getUrl("assets/scripts/redcap_notifs.js");
-        $notif_js       = $this->getUrl("assets/scripts/redcap_notif.js");
-        $cur_user       = $this->clean_user($this->getUser()->getUsername() );
-
-        //TODO figure out why nonsignedin/incognito surveys can't do ajax to get notifs
-        $survey_notif_payload = null;
-        if($cur_user == "survey_respondent"){
-            $pid = !empty($Proj) ? $Proj->project_id : null;
-            $all_notifications      = $this->refreshNotifications($pid, $this->getUser()->getUsername(), null, 'project');
-            $survey_notif_payload   = json_encode($all_notifications, JSON_THROW_ON_ERROR);
-        }
-
-        $snooze_duration    = $this->getSystemSetting("redcap-notifs-snooze-minutes") ?? self::DEFAULT_NOTIF_SNOOZE_TIME_MIN;
-        $refresh_limit      = $this->getSystemSetting("redcap-notifs-refresh-limit") ?? self::DEFAULT_NOTIF_REFRESH_TIME_HOUR;
-
-        $notifs_config = array(
-            "ajax_endpoint"             => $ajax_endpoint,
-            "redcap_csrf_token"         => $this->getCSRFToken(),
-            "current_user"              => $cur_user,
-            "snooze_duration"           => $snooze_duration,
-            "refresh_limit"             => $refresh_limit,
-
-            "current_page"              => PAGE,
-            "project_id"                => !empty($Proj) ? $Proj->project_id : null,
-            "dev_prod_status"           => !empty($Proj) ? $Proj->status : null,
-            "survey_notif_payload"      => $survey_notif_payload
-        );
-        ?>
-        <link rel="stylesheet" href="<?= $notif_css ?>">
-        <script src="<?= $utility_js ?>" type="text/javascript"></script>
-        <script src="<?= $logging_js ?>" type="text/javascript"></script>
-        <script src="<?= $notif_js ?>" type="text/javascript"></script>
-        <script src="<?= $notifs_js ?>" type="text/javascript"></script>
-        <script>
-            $(window).on('load', function () {
-                var rc_notifs = new RCNotifs(<?=json_encode($notifs_config)?>);
-            });
-        </script>
-        <?php
-    }
-
-    /**
-     * INJECT FRONT END CODE TO DISPLAY ALERTS.
-     *
-     * @param $alerts
-     * @return array
-     */
-    public function injectREDCapNotifsToo(){
-        global $Proj;
-
-        $notif_css      = $this->getUrl("assets/styles/redcap_notifs.css", true);
-        $notifs_js      = $this->getUrl("assets/scripts/notifs.js", true);
+        $notifs_jsmo    = $this->getUrl("assets/scripts/notifs.js", true);
         $utility_js     = $this->getUrl("assets/scripts/utility.js", true);
-        $cur_user       = $this->clean_user($this->getUser()->getUsername() );
 
-        //TODO figure out why nonsignedin/incognito surveys can't do ajax to get notifs
-        $survey_notif_payload = null;
-        if($cur_user == "survey_respondent"){
-            $pid = !empty($Proj) ? $Proj->project_id : null;
-            $all_notifications      = $this->refreshNotifications($pid, $this->getUser()->getUsername(), null, 'project');
-            $survey_notif_payload   = json_encode($all_notifications, JSON_THROW_ON_ERROR);
-        }
+        $notifs_cls     = $this->getUrl("assets/scripts/redcap_notifs.js", true);
+        $notif_cls      = $this->getUrl("assets/scripts/redcap_notif.js", true);
+        $notif_css      = $this->getUrl("assets/styles/redcap_notifs.css", true);
 
+        $cur_user           = $this->getUser()->getUsername();
         $snooze_duration    = $this->getSystemSetting("redcap-notifs-snooze-minutes") ?? self::DEFAULT_NOTIF_SNOOZE_TIME_MIN;
         $refresh_limit      = $this->getSystemSetting("redcap-notifs-refresh-limit") ?? self::DEFAULT_NOTIF_REFRESH_TIME_HOUR;
 
-        //DATA TO INIT JSMO module WITH
+        //TODO figure out why nonsignedin/incognito surveys can't do ajax to get notifs
+        $survey_notif_payload = null;
+        if($cur_user == $this->SURVEY_USER){
+            $pid                    = !empty($Proj) ? $Proj->project_id : null;
+            $all_notifications      = $this->refreshNotifications($pid, $cur_user, null, 'project');
+            $survey_notif_payload   = json_encode($all_notifications, JSON_THROW_ON_ERROR);
+        }
+
+        //DATA TO INIT JSMO module
         $notifs_config = array(
-            "current_user"              => $cur_user,
+            "current_user"              => $this->clean_user($cur_user),
             "snooze_duration"           => $snooze_duration,
             "refresh_limit"             => $refresh_limit,
             "current_page"              => PAGE,
@@ -612,7 +554,9 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $this->initializeJavascriptModuleObject();
         ?>
         <script src="<?= $utility_js ?>" type="text/javascript"></script>
-        <script src="<?= $notifs_js?>" type="text/javascript"></script>
+        <script src="<?= $notifs_cls?>" type="text/javascript"></script>
+        <script src="<?= $notif_cls?>" type="text/javascript"></script>
+        <script src="<?= $notifs_jsmo?>" type="text/javascript"></script>
         <link rel="stylesheet" href="<?= $notif_css ?>">
         <script>
             $(function() {

@@ -1,3 +1,4 @@
+//NOTIF CONTAINER TYPE
 var modal_container     = `<div id="redcap_modal_notifs" class="modal redcap_notifs"  style="display: block;" >
                             <div class="modal-dialog" role="document" style="max-width: 950px !important;">
                                 <div class="modal-content">
@@ -494,7 +495,6 @@ RCNotifs.prototype.buildNotifUnits = function(){
     }
 }
 
-
 //Snoozing utils
 RCNotifs.prototype.snoozeNotifs = function(notif_type){
     var snooze_expire = this.calcSnoozeExpiration();
@@ -546,34 +546,7 @@ RCNotifs.prototype.getDevProdStatus = function(){
     //IF on a project page, will have devprod status of 0,1, null
     return this.dev_prod_status;
 }
-//LOGGING
-RCNotifs.prototype.pushLogs = function(){
-    var _this       = this;
 
-    //TODO LATER ON TURN THIS BACK ON
-    return;
-    var all_logs    = {"hi":"bye"};//_this.console.getAllLogs();
-
-    console.log("all logs", all_logs);
-
-    var data    = {
-        "action" : "save_logging",
-        "redcap_csrf_token" : _this.redcap_csrf_token,
-        "logs" : all_logs
-    }
-
-    $.ajax({
-        url: _this.ajax_endpoint,
-        method: 'POST',
-        data: data
-    }).done(function (result) {
-        if(result){
-            console.log(decode_object(result));
-        }
-    }).fail(function (e) {
-        console.log("pushLogs failed" + JSON.stringify(e), "error");
-    });
-}
 
 
 

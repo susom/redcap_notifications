@@ -9,8 +9,8 @@
         InitFunction: function () {
             console.log("Init Function");
 
-            module.callAjax();
-            module.Log("this is jsmo log msg", { "record": 4, "foo":"bar" });
+            // module.callAjax();
+            // module.Log("this is jsmo log msg", { "record": 4, "foo":"bar" });
         },
 
         callAjax: function () {
