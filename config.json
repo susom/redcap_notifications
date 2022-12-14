@@ -54,6 +54,22 @@
         "pages/ajaxHandler"
 	],
 
+    "enable-ajax-logging": true,
+
+    "auth-ajax-actions": [
+        "MyAction"
+        ,"refresh"
+        ,"dismiss"
+        ,"force_refresh"
+    ],
+
+    "no-auth-ajax-actions": [
+        "MyAction"
+        ,"refresh"
+        ,"dismiss"
+        ,"force_refresh"
+    ],
+
 	"project-settings": [
 		{
 			"key": "enable-project-debug-logging",
