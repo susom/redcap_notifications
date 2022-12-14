@@ -532,15 +532,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $snooze_duration    = $this->getSystemSetting("redcap-notifs-snooze-minutes") ?? self::DEFAULT_NOTIF_SNOOZE_TIME_MIN;
         $refresh_limit      = $this->getSystemSetting("redcap-notifs-refresh-limit") ?? self::DEFAULT_NOTIF_REFRESH_TIME_HOUR;
 
-        //TODO figure out why nonsignedin/incognito surveys can't do ajax to get notifs
-        $survey_notif_payload = null;
-        if($cur_user == $this->SURVEY_USER){
-            $pid                    = !empty($Proj) ? $Proj->project_id : null;
-
-            $all_notifications      = $this->refreshNotifications($pid, $cur_user, null, "project");
-            $survey_notif_payload   = json_encode($all_notifications, JSON_THROW_ON_ERROR);
-        }
-
         //DATA TO INIT JSMO module
         $notifs_config = array(
             "current_user"              => $this->clean_user($cur_user),
@@ -548,8 +539,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
             "refresh_limit"             => $refresh_limit,
             "current_page"              => PAGE,
             "project_id"                => !empty($Proj) ? $Proj->project_id : null,
-            "dev_prod_status"           => !empty($Proj) ? $Proj->status : null,
-            "survey_notif_payload"      => $survey_notif_payload
+            "dev_prod_status"           => !empty($Proj) ? $Proj->status : null
         );
 
         //Initialize JSMO

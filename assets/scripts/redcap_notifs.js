@@ -54,9 +54,6 @@ function RCNotifs(config) {
     this.project_id                 = config.project_id;
     this.dev_prod_status            = config.dev_prod_status;
 
-    //TODO temporary till we figure out the incognito sruvey ajax
-    this.survey_payload             = config.survey_notif_payload;
-
     this.force_refresh              = null;
     console.log("current page is : " + this.page, "debug");
 
@@ -137,11 +134,6 @@ RCNotifs.prototype.loadNotifs = function(){
 RCNotifs.prototype.parseNotifs = function(data){
     var client_date_time    = getClientDateTime();
     var client_offset       = getDifferenceInHours( new Date(data["server_time"]) , new Date(client_date_time)) + "h";
-
-    //TODO TEMPORARY UNTIL FIGURE OUT AJAX
-    if(this.survey_payload){
-        data = JSON.parse(this.survey_payload);
-    }
 
     this.payload = {
         "server"   : {"updated" : data["server_time"] }
