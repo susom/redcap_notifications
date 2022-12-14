@@ -1,3 +1,4 @@
+//NOTIF CONTAINER TYPE
 var modal_container     = `<div id="redcap_modal_notifs" class="modal redcap_notifs"  style="display: block;" >
                             <div class="modal-dialog" role="document" style="max-width: 950px !important;">
                                 <div class="modal-content">
@@ -38,14 +39,14 @@ var banner_container    = `<div id="redcap_banner_notifs" class="redcap_notifs">
 
 function RCNotifs(config) {
     //init config
-    this.ajax_endpoint              = config.ajax_endpoint;
-    this.redcap_csrf_token          = config.redcap_csrf_token;
     this.default_polling_int        = 30000; //30 seconds
 
     //read storage value
     this.redcap_notif_storage_key   = "redcapNotifications";
     this.user                       = config.current_user;
     this.redcap_notif_storage_key   += "_" + this.user;
+
+    this.parent                     = config.parent;
 
     this.snooze_duration            = config.snooze_duration;
     this.refresh_limit              = config.refresh_limit;
@@ -57,9 +58,7 @@ function RCNotifs(config) {
     this.survey_payload             = config.survey_notif_payload;
 
     this.force_refresh              = null;
-    this.console                    = console;//new Logging({"debug" : true, "error" : true});
-
-    this.console.log("current page is : " + this.page, "debug");
+    console.log("current page is : " + this.page, "debug");
 
     //default empty "payload"
     this.payload = {
@@ -78,7 +77,6 @@ function RCNotifs(config) {
     this.banner_jq          = null;
     this.modal_jq           = null;
     this.notif_objs         = [];
-
 
     //load and parse notifs
     this.loadNotifs();
@@ -99,29 +97,15 @@ function RCNotifs(config) {
 
 //notification payload
 RCNotifs.prototype.refreshFromServer = function(notif_type){
-    var _ajax_ep    = this.ajax_endpoint;
-
-    //
+    var _this       = this;
     var data        = {
-         "action"           : "refresh"
-        ,"last_updated"     : this.force_refresh ? null : this.getLastUpdate()
-        ,"redcap_csrf_token": this.redcap_csrf_token
-        ,"project_id"       : this.project_id
+         "last_updated"     : _this.force_refresh ? null : _this.getLastUpdate()
+        ,"project_id"       : _this.project_id
         ,"proj_or_sys"      : notif_type ?? "both"
     };
 
     return new Promise(function(resolve, reject) {
-        $.ajax({
-            url: _ajax_ep,
-            method: 'POST',
-            data: data,
-            success: function(result) {
-                resolve(result) // Resolve promise and go to then()
-            },
-            error: function(err) {
-                reject(err) // Reject the promise and go to catch()
-            }
-        });
+        _this.parent.callAjax("refresh", data, resolve, reject);
     });
 }
 RCNotifs.prototype.loadNotifs = function(){
@@ -137,12 +121,12 @@ RCNotifs.prototype.loadNotifs = function(){
             // SUCCESFUL, parse Notifs and store in this.notif
             var response = decode_object(data);
             if(response){
-                console.log("ajax 'works' but doesnt actually hit back end.. and returns error 404 page");
+                console.log("refershfrom server promise returned", response);
                 _this.parseNotifs(response);
             }
         }).catch(function(err) {
             // Run this when promise was rejected via reject()
-            _this.console.log("Error loading or parsing notifs, do nothing they just wont see the notifs this time",  "error");
+            // _this.parent.Log("Error loading or parsing notifs, do nothing they just wont see the notifs this time");
         });
     }else{
         this.buildNotifUnits();
@@ -170,7 +154,7 @@ RCNotifs.prototype.parseNotifs = function(data){
         ,"notifs" : data["notifs"]
         ,"snooze_expire" : {"banner" : null, "modal" :null }
     };
-    // this.console.log("fresh load from server" + JSON.stringify(this.payload), "info");
+    // this.parent.Log("fresh load from server" + JSON.stringify(this.payload), "info");
 
     //fresh payload, need to clear out notifs cache.
     this.notif_objs = [];
@@ -201,43 +185,32 @@ RCNotifs.prototype.isStale = function(){
             return false;
         }
     }
-    this.console.log("notif payload isStale() " + hours_since_last_updated +  " hours since last updated", "info");
+    // this.parent.Log("notif payload isStale() " + hours_since_last_updated +  " hours since last updated");
     return true;
 }
 RCNotifs.prototype.getForceRefresh = function(){
     var _this   = this;
-    var data    = {
-        "action" : "force_refresh",
-        "redcap_csrf_token" : _this.redcap_csrf_token
-    }
-
-    $.ajax({
-        url: _this.ajax_endpoint,
-        method: 'POST',
-        data: data
-    }).done(function (result) {
-        if(result){
+    var data    = {};
+    _this.parent.callAjax("force_refresh", data, function(result){
+        if(result) {
             var forced_refresh_list = decode_object(result);
             var force_record_ids    = Object.keys(forced_refresh_list);
 
-            for(var i in _this.notif_objs){
+            for (var i in _this.notif_objs) {
                 var notif_o = _this.notif_objs[i];
-                if ($.inArray(notif_o.getRecordId(), force_record_ids) > -1){
+                if ($.inArray(notif_o.getRecordId(), force_record_ids) > -1) {
                     var check_force = new Date(_this.getLastUpdate()) < new Date(forced_refresh_list[notif_o.getRecordId()]);
 
-                    if(check_force){
+                    if (check_force) {
                         //one match is enough to refresh entire payload
                         _this.force_refresh = true;
-                        _this.console.log("Notif " + notif_o.getRecordId() + " needs force refresh at " + forced_refresh_list[notif_o.getRecordId()] , "info" );
-
+                        // _this.parent.Log("Notif " + notif_o.getRecordId() + " needs force refresh at " + forced_refresh_list[notif_o.getRecordId()], {});
                         _this.loadNotifs();
                         break;
                     }
                 }
             }
         }
-    }).fail(function (e) {
-        _this.console.log("getForceRefresh failed" + JSON.stringify(e), "error");
     });
 }
 
@@ -246,7 +219,6 @@ RCNotifs.prototype.startPolling = function(){
     this.pollNotifsDisplay();
     this.pollDismissNotifs();
     this.pollForceRefresh();
-    this.pollPushLogs();
 }
 RCNotifs.prototype.pollDismissNotifs = function(){
     var _this = this;
@@ -262,7 +234,7 @@ RCNotifs.prototype.pollNotifsDisplay = function(){
         }else if(_this.payload.server.updated){
             _this.showNotifs();
         }else{
-            _this.console.log("no payload to display yet", "misc");
+            // _this.parent.Log("no payload to display yet", {});
         }
     }, this.default_polling_int);
 }
@@ -275,12 +247,6 @@ RCNotifs.prototype.pollForceRefresh = function(){
 
             _this.getForceRefresh();
         }
-    }, this.default_polling_int);
-}
-RCNotifs.prototype.pollPushLogs = function(){
-    var _this = this;
-    setInterval(function() {
-        _this.pushLogs();
     }, this.default_polling_int);
 }
 
@@ -358,9 +324,9 @@ RCNotifs.prototype.buildNotifs = function(){
 
     //Batch hide notifs containers FOR "snooze" or "one off hide"
     html_cont["banner"].find(".dismiss_all").click(function(){
-        // _this.console.log("dismmiss all dismissable banners", "debug");
+        // _this.parent.Log("dismmiss all dismissable banners", "debug");
         if(html_cont["banner"].find(".dismissable").length){
-            // _this.console.log("how many banner notifs to dimsmiss " + html_cont["banner"].find(".dismissable .notif_hdr button").length, "debug");
+            // _this.parent.Log("how many banner notifs to dimsmiss " + html_cont["banner"].find(".dismissable .notif_hdr button").length, "debug");
 
             html_cont["banner"].find(".dismissable .notif_hdr button").each(function(){
                 if($(this).is(":visible")){
@@ -378,9 +344,9 @@ RCNotifs.prototype.buildNotifs = function(){
     });
 
     html_cont["modal"].find(".dismiss_all").click(function(){
-        // _this.console.log("dismmiss all dismissable modal", "debug");
+        // _this.parent.Log("dismmiss all dismissable modal", "debug");
         if(html_cont["modal"].find(".dismissable").length){
-            // _this.console.log("how many modal notifs to dismiss? " + html_cont["modal"].find(".dismissable .notif_hdr button").length, "debug");
+            // _this.parent.Log("how many modal notifs to dismiss? " + html_cont["modal"].find(".dismissable .notif_hdr button").length, "debug");
 
             html_cont["modal"].find(".dismissable .notif_hdr button").each(function(){
                 if($(this).is(":visible")){
@@ -429,31 +395,23 @@ RCNotifs.prototype.dismissNotif = function(data){
     localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
 }
 RCNotifs.prototype.dismissNotifs = function(){
+    return;
     if(this.payload.client.dismissed.length){
-        this.console.log("polling dismiss " +  this.payload.client.dismissed.length + " items",  " info");
+        // this.parent.Log("polling dismiss " +  this.payload.client.dismissed.length + " items", {});
 
         var _this = this;
         var data = {
-            "action" : "dismiss",
-            "dismiss_notifs" : this.payload.client.dismissed,
-            "redcap_csrf_token" : this.redcap_csrf_token
+            "dismiss_notifs" : this.payload.client.dismissed
         }
 
-        $.ajax({
-            url: this.ajax_endpoint,
-            method: 'POST',
-            data: data,
-            dataType : 'JSON'
-        }).done(function (result) {
+        _this.parent.callAjax("dismiss", data, function(result){
             if(result){
-                _this.console.log("dismissNotif Sucess", "misc");
+                // _this.parent.Log("dismissNotif Sucess", {});
                 _this.resolveDismissed(result);
             }
-        }).fail(function (e) {
-            _this.console.log("dismissNotif failed " +  JSON.stringify(e), "error");
         });
     }else{
-        // this.console.log("no notifs to dismiss yet", "misc");
+        // this.parent.Log("no notifs to dismiss yet", "misc");
     }
 }
 RCNotifs.prototype.resolveDismissed = function(remove_notifs){
@@ -494,18 +452,17 @@ RCNotifs.prototype.buildNotifUnits = function(){
     }
 }
 
-
 //Snoozing utils
 RCNotifs.prototype.snoozeNotifs = function(notif_type){
     var snooze_expire = this.calcSnoozeExpiration();
     this.payload.snooze_expire[notif_type] = snooze_expire;
     localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
-    this.console.log("snoozing " + notif_type + " " +  this.payload.snooze_expire, "info");
+    // this.parent.Log("snoozing " + notif_type + " " +  this.payload.snooze_expire, {});
 }
 RCNotifs.prototype.isSnoozed = function(notif_type){
     var calc = Date.now() - this.payload.snooze_expire[notif_type];
     if(this.payload.snooze_expire[notif_type] && calc < 0){
-        this.console.log(notif_type + " notifs should be snoozed for another " + Math.abs(calc)/60000 + " minutes", "info");
+        // this.parent.Log(notif_type + " notifs should be snoozed for another " + Math.abs(calc)/60000 + " minutes", {});
         return true;
     }else{
         return false;
@@ -526,7 +483,7 @@ RCNotifs.prototype.getOffsetTime = function(date_str){
     var time = client_offset.getHours() + ":" + client_offset.getMinutes() + ":" + client_offset.getSeconds();
     var offset_date_time = date + ' ' + time;
 
-    // this.console.log("offset server time in client context " + offset_date_time, "info");
+    // this.parent.Log("offset server time in client context " + offset_date_time, "info");
 
     return offset_date_time;
 }
@@ -546,34 +503,7 @@ RCNotifs.prototype.getDevProdStatus = function(){
     //IF on a project page, will have devprod status of 0,1, null
     return this.dev_prod_status;
 }
-//LOGGING
-RCNotifs.prototype.pushLogs = function(){
-    var _this       = this;
 
-    //TODO LATER ON TURN THIS BACK ON
-    return;
-    var all_logs    = {"hi":"bye"};//_this.console.getAllLogs();
-
-    console.log("all logs", all_logs);
-
-    var data    = {
-        "action" : "save_logging",
-        "redcap_csrf_token" : _this.redcap_csrf_token,
-        "logs" : all_logs
-    }
-
-    $.ajax({
-        url: _this.ajax_endpoint,
-        method: 'POST',
-        data: data
-    }).done(function (result) {
-        if(result){
-            console.log(decode_object(result));
-        }
-    }).fail(function (e) {
-        console.log("pushLogs failed" + JSON.stringify(e), "error");
-    });
-}
 
 
 

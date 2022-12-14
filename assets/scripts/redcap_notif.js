@@ -1,6 +1,5 @@
 //NOTIF TEMPLATES
 var notif_type = {};
-
 notif_type["banner"]    = `<div class="notif alert ban">
                                 <div class="notif_hdr"><button>Dismiss</button></div>
                                 <div class="notif_bdy">
@@ -9,7 +8,6 @@ notif_type["banner"]    = `<div class="notif alert ban">
                                 </div>
                                 <div class="notif_ftr"></div>
                             </div>`;
-
 notif_type["modal"]     = `<div class="notif alert mod">
                                 <div class="notif_hdr"><button>Dismiss</button></div>
                                 <div class="notif_bdy">

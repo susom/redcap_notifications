@@ -2,11 +2,10 @@
 namespace Stanford\RedcapNotifications;
 
 require_once "emLoggerTrait.php";
-//require_once "js/notifications.js";
 
-use DateTime;
 use REDCap;
 use Exception;
+use DateTime;
 use REDCapEntity\Page;
 
 class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
@@ -97,11 +96,13 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @param $project_or_system_or_both
      * @return array|null
      */
-    public function refreshNotifications($pid, $user, $project_id=null, $since_last_update=null, $project_or_system_or_both=null) {
+    public function refreshNotifications($pid, $user, $since_last_update=null, $project_or_system_or_both=null) {
 
         $refreshStart = hrtime(true);
 
         $this->emDebug("In refreshNotifications: pid $pid, since last update: $since_last_update, note type: $project_or_system_or_both, for user $user");
+        $this->emDebug("why i aint getting shit?", $project_or_system_or_both);
+
         if (empty($project_or_system_or_both)) {
             return null;
         }
@@ -517,58 +518,55 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @param $alerts
      * @return array
      */
-    public function injectREDCapNotifs()
-    {
+    public function injectREDCapNotifs(){
         global $Proj;
 
-//        if (!defined("USERID")) {
-//            $this->emDebug('USer NOT signed in yet, so dont bother.  maybe they bookmarked a project page, either way catch them on next page load');
-//            return;
-//        }
+        $notifs_jsmo        = $this->getUrl("assets/scripts/notifs.js", true);
+        $utility_js         = $this->getUrl("assets/scripts/utility.js", true);
 
-        $this->emDebugForCustomUseridList("this", "is", "not", array("working", "for", "this", "user"));
+        $notifs_cls         = $this->getUrl("assets/scripts/redcap_notifs.js", true);
+        $notif_cls          = $this->getUrl("assets/scripts/redcap_notif.js", true);
+        $notif_css          = $this->getUrl("assets/styles/redcap_notifs.css", true);
 
-        $ajax_endpoint  = $this->getUrl("pages/ajaxHandler.php");
-        $notif_css      = $this->getUrl("assets/styles/redcap_notifs.css");
-        $utility_js     = $this->getUrl("assets/scripts/utility.js");
-        $logging_js     = $this->getUrl("assets/scripts/logging.js");
-        $notifs_js      = $this->getUrl("assets/scripts/redcap_notifs.js");
-        $notif_js       = $this->getUrl("assets/scripts/redcap_notif.js");
-        $cur_user       = $this->clean_user($this->getUser()->getUsername() );
-
-        //TODO figure out why nonsignedin/incognito surveys can't do ajax to get notifs
-        $survey_notif_payload = null;
-        if($cur_user == "survey_respondent"){
-            $pid = !empty($Proj) ? $Proj->project_id : null;
-            $all_notifications      = $this->refreshNotifications($pid, $this->getUser()->getUsername(), null, 'project');
-            $survey_notif_payload   = json_encode($all_notifications, JSON_THROW_ON_ERROR);
-        }
-
+        $cur_user           = $this->getUser()->getUsername();
         $snooze_duration    = $this->getSystemSetting("redcap-notifs-snooze-minutes") ?? self::DEFAULT_NOTIF_SNOOZE_TIME_MIN;
         $refresh_limit      = $this->getSystemSetting("redcap-notifs-refresh-limit") ?? self::DEFAULT_NOTIF_REFRESH_TIME_HOUR;
 
+        //TODO figure out why nonsignedin/incognito surveys can't do ajax to get notifs
+        $survey_notif_payload = null;
+        if($cur_user == $this->SURVEY_USER){
+            $pid                    = !empty($Proj) ? $Proj->project_id : null;
+
+            $all_notifications      = $this->refreshNotifications($pid, $cur_user, null, "project");
+            $survey_notif_payload   = json_encode($all_notifications, JSON_THROW_ON_ERROR);
+        }
+
+        //DATA TO INIT JSMO module
         $notifs_config = array(
-            "ajax_endpoint"             => $ajax_endpoint,
-            "redcap_csrf_token"         => $this->getCSRFToken(),
-            "current_user"              => $cur_user,
+            "current_user"              => $this->clean_user($cur_user),
             "snooze_duration"           => $snooze_duration,
             "refresh_limit"             => $refresh_limit,
-
             "current_page"              => PAGE,
             "project_id"                => !empty($Proj) ? $Proj->project_id : null,
             "dev_prod_status"           => !empty($Proj) ? $Proj->status : null,
             "survey_notif_payload"      => $survey_notif_payload
         );
+
+        //Initialize JSMO
+        $this->initializeJavascriptModuleObject();
         ?>
-        <link rel="stylesheet" href="<?= $notif_css ?>">
         <script src="<?= $utility_js ?>" type="text/javascript"></script>
-        <script src="<?= $logging_js ?>" type="text/javascript"></script>
-        <script src="<?= $notif_js ?>" type="text/javascript"></script>
-        <script src="<?= $notifs_js ?>" type="text/javascript"></script>
+        <script src="<?= $notifs_cls?>" type="text/javascript"></script>
+        <script src="<?= $notif_cls?>" type="text/javascript"></script>
+        <script src="<?= $notifs_jsmo?>" type="text/javascript"></script>
+        <link rel="stylesheet" href="<?= $notif_css ?>">
         <script>
-            $(window).on('load', function () {
-                var rc_notifs = new RCNotifs(<?=json_encode($notifs_config)?>);
-            });
+            $(function() {
+                // console.log("injecting the jsmo into the page output html , and setting initial config data");
+                const module    = <?=$this->getJavascriptModuleObjectName()?>;
+                module.config   = <?=json_encode($notifs_config)?>;
+                module.afterRender(<?=$this->getJavascriptModuleObjectName()?>.InitFunction);
+            })
         </script>
         <?php
     }
@@ -634,4 +632,107 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
             $this->emDebug("Debug for $cur_user", $args);
         }
     }
+
+
+    /* AJAX HANDLING IN HERE INSTEAD OF A STAND ALONE PAGE? */
+    public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id) {
+//        $this->emDebug(func_get_args());
+//        $this->emDebug("is redcap_module_ajax a reserved name?",
+//            $action,
+//            $payload,
+//            $project_id,
+//            $page,
+//            $page_full,
+//            $user_id
+//        );
+
+        $return_o = ["success" => false];
+
+        switch($action){
+            case "refresh":
+                try {
+                    $last_updated_post  = $payload['last_updated'];
+                    $proj_or_sys_post   = $payload['proj_or_sys'];
+                    $last_updated       = isValid($last_updated_post, 'Y-m-d H:i:s') ? $last_updated_post : null;
+                    $project_or_system  = $proj_or_sys_post ?? null;
+                    $all_notifications      = $this->refreshNotifications($project_id, $this->getUser()->getUsername(), $last_updated, $project_or_system);
+
+                    $this->emDebug("no notif payload from refreshNotifications()?", $project_or_system);
+                    $return_o               = $all_notifications;
+                    $return_o["success"]    = true;
+                } catch (\Exception $e) {
+                    //Entities::createException($e->getMessage());
+                    $return_o               = array('status' => 'error', 'message' => $e->getMessage());
+                    $return_o["success"]    = false;
+                }
+
+                break;
+
+            case "dismiss":
+                /**
+                 * This is the callback page from js when notifications are dismissed.  This page will accept the dismissed
+                 * notification and store it in the REDCap project which holds dismissed notifications.
+                 */
+
+                $dismiss_notifs = $payload['dismiss_notifs'];
+
+                $new_timestamp  = new DateTime();
+                $now            = $new_timestamp->format('Y-m-d H:i:s');
+
+                $dismissalPid   = $this->getSystemProjectIDs('dismissal-pid');
+                if(count($dismiss_notifs)){
+                    $data       = array();
+                    $return_ids = array();
+                    foreach($dismiss_notifs as $notif){
+                        $newRecordId = REDCap::reserveNewRecordId($dismissalPid);
+                        $data[] = array(
+                            "record_id"                 => $newRecordId,
+                            "note_record_id"            => $notif["record_id"],
+                            "note_name"                 => $notif['note_name'],
+                            "note_username"             => $notif['note_username'],
+                            "note_dismissal_datetime"   => $now
+                        );
+                        $return_ids[] = $notif["record_id"];
+                    }
+
+                    $results = REDCap::saveData($dismissalPid, 'json', json_encode($data));
+                    $this->emDebug("need to return the dismissed record_ids", $return_ids);
+                    $this->emDebug("Save Return results: " . json_encode($results) . " for notification: " . json_encode($dismissData));
+
+                    $return_o               = $return_ids;
+                    $return_o["success"]    = true;
+                }else{
+                    $this->emError("Cannot save dismissed notification because record set was empty or there was invalid data");
+                    $return_o = ["success" => false];
+                }
+
+                break;
+
+            case "force_refresh":
+                //THEN we poll every 30 seconds? check the flag against and notif against current payload notifs?
+                //then force a refresh if the one in EM is > than the update stamp in the payload?
+
+                try {
+                    $return_o               = $this->getForceRefreshSetting();
+                    $return_o["success"]    = true;
+                } catch (\Exception $e) {
+                    $return_o               = array('status' => 'error', 'message' => $e->getMessage());
+                    $return_o["success"]    = false;
+                }
+                break;
+
+            default:
+                $this->emError("Invalid Action");
+                $return_o = ["success" => false];
+                break;
+        }
+
+        // Return is left as php object, is converted automatically
+        return $return_o;
+    }
+}
+
+function isValid($date, $format = 'Y-m-d'){
+    $dt = DateTime::createFromFormat($format, $date);
+    return $dt && $dt->format($format) === $date;
 }
