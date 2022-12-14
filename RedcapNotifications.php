@@ -96,11 +96,13 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @param $project_or_system_or_both
      * @return array|null
      */
-    public function refreshNotifications($pid, $user, $project_id=null, $since_last_update=null, $project_or_system_or_both=null) {
+    public function refreshNotifications($pid, $user, $since_last_update=null, $project_or_system_or_both=null) {
 
         $refreshStart = hrtime(true);
 
         $this->emDebug("In refreshNotifications: pid $pid, since last update: $since_last_update, note type: $project_or_system_or_both, for user $user");
+        $this->emDebug("why i aint getting shit?", $project_or_system_or_both);
+
         if (empty($project_or_system_or_both)) {
             return null;
         }
@@ -534,7 +536,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $survey_notif_payload = null;
         if($cur_user == $this->SURVEY_USER){
             $pid                    = !empty($Proj) ? $Proj->project_id : null;
-            $all_notifications      = $this->refreshNotifications($pid, $cur_user, null, 'project');
+
+            $all_notifications      = $this->refreshNotifications($pid, $cur_user, null, "project");
             $survey_notif_payload   = json_encode($all_notifications, JSON_THROW_ON_ERROR);
         }
 
@@ -652,10 +655,9 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
                     $proj_or_sys_post   = $payload['proj_or_sys'];
                     $last_updated       = isValid($last_updated_post, 'Y-m-d H:i:s') ? $last_updated_post : null;
                     $project_or_system  = $proj_or_sys_post ?? null;
-
                     $all_notifications      = $this->refreshNotifications($project_id, $this->getUser()->getUsername(), $last_updated, $project_or_system);
 
-                    $this->emDebug("no notif payload?", $all_notifications);
+                    $this->emDebug("no notif payload from refreshNotifications()?", $project_or_system);
                     $return_o               = $all_notifications;
                     $return_o["success"]    = true;
                 } catch (\Exception $e) {
