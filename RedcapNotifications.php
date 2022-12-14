@@ -18,7 +18,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 
     public function __construct() {
 		parent::__construct();
-        $this->emDebug("how do i reference php private variables?", $this->SURVEY_USER);
 	}
 
     /**
@@ -520,12 +519,12 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     public function injectREDCapNotifs(){
         global $Proj;
 
-        $notifs_jsmo    = $this->getUrl("assets/scripts/notifs.js", true);
-        $utility_js     = $this->getUrl("assets/scripts/utility.js", true);
+        $notifs_jsmo        = $this->getUrl("assets/scripts/notifs.js", true);
+        $utility_js         = $this->getUrl("assets/scripts/utility.js", true);
 
-        $notifs_cls     = $this->getUrl("assets/scripts/redcap_notifs.js", true);
-        $notif_cls      = $this->getUrl("assets/scripts/redcap_notif.js", true);
-        $notif_css      = $this->getUrl("assets/styles/redcap_notifs.css", true);
+        $notifs_cls         = $this->getUrl("assets/scripts/redcap_notifs.js", true);
+        $notif_cls          = $this->getUrl("assets/scripts/redcap_notif.js", true);
+        $notif_css          = $this->getUrl("assets/styles/redcap_notifs.css", true);
 
         $cur_user           = $this->getUser()->getUsername();
         $snooze_duration    = $this->getSystemSetting("redcap-notifs-snooze-minutes") ?? self::DEFAULT_NOTIF_SNOOZE_TIME_MIN;
@@ -560,7 +559,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         <link rel="stylesheet" href="<?= $notif_css ?>">
         <script>
             $(function() {
-                console.log("injecting the jsmo into the page output html , and setting initial config data");
+                // console.log("injecting the jsmo into the page output html , and setting initial config data");
                 const module    = <?=$this->getJavascriptModuleObjectName()?>;
                 module.config   = <?=json_encode($notifs_config)?>;
                 module.afterRender(<?=$this->getJavascriptModuleObjectName()?>.InitFunction);
@@ -649,30 +648,20 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         switch($action){
             case "refresh":
                 try {
-                    $last_updated_post  = filter_var($_POST['last_updated'], FILTER_SANITIZE_STRING);
-                    $proj_or_sys_post   = filter_var($_POST['proj_or_sys'], FILTER_SANITIZE_STRING);
+                    $last_updated_post  = $payload['last_updated'];
+                    $proj_or_sys_post   = $payload['proj_or_sys'];
                     $last_updated       = isValid($last_updated_post, 'Y-m-d H:i:s') ? $last_updated_post : null;
                     $project_or_system  = $proj_or_sys_post ?? null;
-                    $project_id         = filter_var($_POST['project_id'], FILTER_SANITIZE_NUMBER_INT);
-                    $project_id         = $project_id ?? null;
 
                     $all_notifications      = $this->refreshNotifications($project_id, $this->getUser()->getUsername(), $last_updated, $project_or_system);
-                    $result                 = json_encode($all_notifications, JSON_THROW_ON_ERROR);
+
+                    $this->emDebug("no notif payload?", $all_notifications);
                     $return_o               = $all_notifications;
                     $return_o["success"]    = true;
-
-//                    header("Content-type: application/json");
-//                    http_response_code(200);
-//                    echo htmlentities($result, ENT_QUOTES);
                 } catch (\Exception $e) {
                     //Entities::createException($e->getMessage());
-                    $result                 = json_encode(array('status' => 'error', 'message' => $e->getMessage()), JSON_THROW_ON_ERROR);
                     $return_o               = array('status' => 'error', 'message' => $e->getMessage());
                     $return_o["success"]    = false;
-
-//                    header("Content-type: application/json");
-//                    http_response_code(404);
-//                    echo htmlentities($result, ENT_QUOTES);
                 }
 
                 break;
@@ -683,7 +672,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
                  * notification and store it in the REDCap project which holds dismissed notifications.
                  */
 
-                $dismiss_notifs = filter_var_array($_POST['dismiss_notifs'], FILTER_SANITIZE_STRING);
+                $dismiss_notifs = $payload['dismiss_notifs'];
 
                 $new_timestamp  = new DateTime();
                 $now            = $new_timestamp->format('Y-m-d H:i:s');
@@ -708,14 +697,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
                     $this->emDebug("need to return the dismissed record_ids", $return_ids);
                     $this->emDebug("Save Return results: " . json_encode($results) . " for notification: " . json_encode($dismissData));
 
-                    if (empty($results['errors'])) {
-//                        header("Content-type: application/json");
-//                        http_response_code(200);
-//                        echo json_encode($return_ids);
-                    }
                     $return_o               = $return_ids;
                     $return_o["success"]    = true;
-
                 }else{
                     $this->emError("Cannot save dismissed notification because record set was empty or there was invalid data");
                     $return_o = ["success" => false];
@@ -728,21 +711,11 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
                 //then force a refresh if the one in EM is > than the update stamp in the payload?
 
                 try {
-                    $force_refresh_arr      = $this->getForceRefreshSetting();
-                    $return_o               = $force_refresh_arr;
+                    $return_o               = $this->getForceRefreshSetting();
                     $return_o["success"]    = true;
-
-//                    header("Content-type: application/json");
-//                    http_response_code(200);
-//                    echo htmlentities(json_encode($force_refresh_arr), ENT_QUOTES);
                 } catch (\Exception $e) {
-                    $result                 = json_encode(array('status' => 'error', 'message' => $e->getMessage()), JSON_THROW_ON_ERROR);
                     $return_o               = array('status' => 'error', 'message' => $e->getMessage());
                     $return_o["success"]    = false;
-
-//                    header("Content-type: application/json");
-//                    http_response_code(404);
-//                    echo htmlentities($result, ENT_QUOTES);
                 }
                 break;
 

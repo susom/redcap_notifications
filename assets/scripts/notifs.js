@@ -7,19 +7,25 @@
     // Extend the official JSMO with new methods
     Object.assign(module, {
         InitFunction: function () {
-            console.log("Init Function");
-
-            // module.callAjax();
-            // module.Log("this is jsmo log msg", { "record": 4, "foo":"bar" });
+            // console.log("JSMO Init Function");
+            // console.log("integrating display class RCNotifs");
+            module.config["parent"] = module;
+            module.notifs           = new RCNotifs(module.config);
         },
 
-        callAjax: function () {
-            module.ajax('refresh', this.config).then(function (response) {
+        callAjax: function (action, payload, success_cb, err_cb) {
+            module.ajax(action, payload).then(function (response) {
                 // Process response
-                console.log("refresh Ajax Result: ", response);
+                console.log(action + " Ajax Result: ", response);
+                if (success_cb instanceof Function) {
+                    success_cb(response);
+                }
             }).catch(function (err) {
                 // Handle error
-                console.log(err);
+                console.log(action + " Ajax Error: ", err);
+                if (success_cb instanceof Function) {
+                    err_cb(err);
+                }
             });
         },
 
