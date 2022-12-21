@@ -166,7 +166,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $refreshTime = ($refreshEnd - $refreshStart)/1e+6;
         REDCap::logEvent("The refresh payload for user $user took $refreshTime milliseconds");
         $this->emDebug("The refresh payload for user $user took $refreshTime milliseconds");
-
+        $this->emDebugForCustomUseridList("Why constant refresh?", $user, $pid, $since_last_update, $project_or_system_or_both);
         return [
              "notifs" => $notif_payload,
              "server_time" => $now
@@ -619,7 +619,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $cur_user = $this->getUser()->getUsername();
         if(in_array($cur_user, $custom_log_list)){
             $args = func_get_args();
-            $this->emDebug("Debug for $cur_user", $args);
+            $this->emDebug("REDCapNotifs Custom Debug for $cur_user", $args);
         }
     }
 
@@ -637,6 +637,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 //        );
 
         $return_o = ["success" => false];
+
+        $this->emDebugForCustomUseridList($action,$payload,$project_id,$page_full);
 
         switch($action){
             case "refresh":
