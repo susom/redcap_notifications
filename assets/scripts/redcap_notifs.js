@@ -153,9 +153,9 @@ RCNotifs.prototype.parseNotifs = function(data){
     this.buildNotifUnits();
 
     //TODO TEMPORARY UNTIL FIGURE OUT AJAX
-    if(!this.survey_payload){
-        localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
-    }
+    // if(!this.survey_payload){
+    //     localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
+    // }
 
     if(this.force_refresh){
         //TODO DOES IT MAKE SENSE TO LOAD JUST NEW STUFF SINCE THE LAST UPDATE AND CONCATING , OR JUST PULL ENTIRELY NEW FRESH BATCH?
@@ -174,6 +174,7 @@ RCNotifs.prototype.isStale = function(){
     if(this.payload.server.updated){
         hours_since_last_updated = getDifferenceInHours(new Date(this.getOffsetTime(this.payload.server.updated)) , Date.now()) ;
         if(hours_since_last_updated < this.refresh_limit){
+            this.parent.Log("Constant refresh Ajax could it be cause of offset time?", {"hours_since_last_updated" : hours_since_last_updated, "date_now": Date.now(), "offset_time" : new Date(this.getOffsetTime(this.payload.server.updated))  })
             return false;
         }
     }

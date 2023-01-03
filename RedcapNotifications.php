@@ -164,7 +164,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         // changes nanoseconds to milliseconds and stores in log
         $refreshEnd = hrtime(true);
         $refreshTime = ($refreshEnd - $refreshStart)/1e+6;
-        REDCap::logEvent("The refresh payload for user $user took $refreshTime milliseconds");
+        //REDCap::logEvent("The refresh payload for user $user took $refreshTime milliseconds");
         $this->emDebug("The refresh payload for user $user took $refreshTime milliseconds");
         $this->emDebugForCustomUseridList("Why constant refresh?", $user, $pid, $since_last_update, $project_or_system_or_both);
         return [
