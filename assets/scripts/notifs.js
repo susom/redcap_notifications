@@ -23,7 +23,7 @@
             }).catch(function (err) {
                 // Handle error
                 console.log(action + " Ajax Error: ", err);
-                if (success_cb instanceof Function) {
+                if (err_cb instanceof Function) {
                     err_cb(err);
                 }
             });

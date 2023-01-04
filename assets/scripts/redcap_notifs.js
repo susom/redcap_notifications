@@ -54,6 +54,9 @@ function RCNotifs(config) {
     this.project_id                 = config.project_id;
     this.dev_prod_status            = config.dev_prod_status;
 
+    //if EM goes offline while Front End pages Loaded, need to flag to not try to AJAX the rest of the session
+    this.serverOK                   = true;
+
     this.force_refresh              = null;
     console.log("current page is : " + this.page, "debug");
 
@@ -101,9 +104,14 @@ RCNotifs.prototype.refreshFromServer = function(notif_type){
         ,"proj_or_sys"      : notif_type ?? "both"
     };
 
-    return new Promise(function(resolve, reject) {
-        _this.parent.callAjax("refresh", data, resolve, reject);
-    });
+    if(this.getEndpointStatus()) {
+        return new Promise(function (resolve, reject) {
+            _this.parent.callAjax("refresh", data, resolve, function(err){
+                console.log("refreshFromServer AJAX FAIL")
+                _this.setEndpointFalse(err);
+            });
+        });
+    }
 }
 RCNotifs.prototype.loadNotifs = function(){
     if(localStorage.getItem(this.redcap_notif_storage_key)){
@@ -174,7 +182,9 @@ RCNotifs.prototype.isStale = function(){
     if(this.payload.server.updated){
         hours_since_last_updated = getDifferenceInHours(new Date(this.getOffsetTime(this.payload.server.updated)) , Date.now()) ;
         if(hours_since_last_updated < this.refresh_limit){
-            this.parent.Log("Constant refresh Ajax could it be cause of offset time?", {"hours_since_last_updated" : hours_since_last_updated, "date_now": Date.now(), "offset_time" : new Date(this.getOffsetTime(this.payload.server.updated))  })
+            if(this.getEndpointStatus()){
+                this.parent.Log("Constant refresh Ajax could it be cause of offset time?", {"hours_since_last_updated" : hours_since_last_updated, "date_now": Date.now(), "offset_time" : new Date(this.getOffsetTime(this.payload.server.updated))  })
+            }
             return false;
         }
     }
@@ -184,27 +194,32 @@ RCNotifs.prototype.isStale = function(){
 RCNotifs.prototype.getForceRefresh = function(){
     var _this   = this;
     var data    = {};
-    _this.parent.callAjax("force_refresh", data, function(result){
-        if(result) {
-            var forced_refresh_list = decode_object(result);
-            var force_record_ids    = Object.keys(forced_refresh_list);
 
-            for (var i in _this.notif_objs) {
-                var notif_o = _this.notif_objs[i];
-                if ($.inArray(notif_o.getRecordId(), force_record_ids) > -1) {
-                    var check_force = new Date(_this.getLastUpdate()) < new Date(forced_refresh_list[notif_o.getRecordId()]);
+    if(this.getEndpointStatus()){
+        _this.parent.callAjax("force_refresh", data, function(result){
+            if(result) {
+                var forced_refresh_list = decode_object(result);
+                var force_record_ids    = Object.keys(forced_refresh_list);
 
-                    if (check_force) {
-                        //one match is enough to refresh entire payload
-                        _this.force_refresh = true;
-                        // _this.parent.Log("Notif " + notif_o.getRecordId() + " needs force refresh at " + forced_refresh_list[notif_o.getRecordId()], {});
-                        _this.loadNotifs();
-                        break;
+                for (var i in _this.notif_objs) {
+                    var notif_o = _this.notif_objs[i];
+                    if ($.inArray(notif_o.getRecordId(), force_record_ids) > -1) {
+                        var check_force = new Date(_this.getLastUpdate()) < new Date(forced_refresh_list[notif_o.getRecordId()]);
+
+                        if (check_force) {
+                            //one match is enough to refresh entire payload
+                            _this.force_refresh = true;
+                            // _this.parent.Log("Notif " + notif_o.getRecordId() + " needs force refresh at " + forced_refresh_list[notif_o.getRecordId()], {});
+                            _this.loadNotifs();
+                            break;
+                        }
                     }
                 }
             }
-        }
-    });
+        }, function(err){
+            _this.setEndpointFalse(err);
+        });
+    }
 }
 
 //polling during page session
@@ -215,13 +230,13 @@ RCNotifs.prototype.startPolling = function(){
 }
 RCNotifs.prototype.pollDismissNotifs = function(){
     var _this = this;
-    setInterval(function() {
+    this.DismissIntervalID = setInterval(function() {
         _this.dismissNotifs()
     }, this.default_polling_int);
 }
 RCNotifs.prototype.pollNotifsDisplay = function(){
     var _this = this;
-    setInterval(function() {
+    this.notifDisplayIntervalID = setInterval(function() {
         if(_this.isStale()) {
             _this.loadNotifs();
         }else if(_this.payload.server.updated){
@@ -233,7 +248,7 @@ RCNotifs.prototype.pollNotifsDisplay = function(){
 }
 RCNotifs.prototype.pollForceRefresh = function(){
     var _this = this;
-    setInterval(function() {
+    this.forceRefreshIntervalID = setInterval(function() {
         var payload_last_update = _this.getLastUpdate();
 
         if(payload_last_update){
@@ -241,6 +256,15 @@ RCNotifs.prototype.pollForceRefresh = function(){
             _this.getForceRefresh();
         }
     }, this.default_polling_int);
+}
+RCNotifs.prototype.setEndpointFalse = function (err){
+    this.serverOK = false;
+    if(err){
+        clearInterval(this.DismissIntervalID);
+        clearInterval(this.forceRefreshIntervalID);
+        console.log("AJAX FAILED FOR WHATEVER REASON SO DONT LET IT THROUGH AGAIN" , this.serverOK, this.DismissIntervalID, this.forceRefreshIntervalID, err);
+    }
+
 }
 
 //UI display and behavior
@@ -388,8 +412,7 @@ RCNotifs.prototype.dismissNotif = function(data){
     localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
 }
 RCNotifs.prototype.dismissNotifs = function(){
-    return;
-    if(this.payload.client.dismissed.length){
+    if(this.payload.client.dismissed.length && this.getEndpointStatus() ){
         // this.parent.Log("polling dismiss " +  this.payload.client.dismissed.length + " items", {});
 
         var _this = this;
@@ -402,6 +425,8 @@ RCNotifs.prototype.dismissNotifs = function(){
                 // _this.parent.Log("dismissNotif Sucess", {});
                 _this.resolveDismissed(result);
             }
+        },function(err){
+            _this.setEndpointFalse(err);
         });
     }else{
         // this.parent.Log("no notifs to dismiss yet", "misc");
@@ -482,6 +507,9 @@ RCNotifs.prototype.getOffsetTime = function(date_str){
 }
 
 //GET
+RCNotifs.prototype.getEndpointStatus = function(){
+    return this.serverOK;
+}
 RCNotifs.prototype.getCurPage = function(){
     return this.page;
 }
