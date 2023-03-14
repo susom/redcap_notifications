@@ -33,7 +33,7 @@
             module.log(subject, msg_o).then(function(logId) {
                 console.log("message logged", logId, subject, msg_o);
             }).catch(function(err) {
-                console.log("error logging message", err);
+                console.log("Logging message failure:", err);
             });
         }
     });

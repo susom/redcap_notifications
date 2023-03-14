@@ -50,10 +50,6 @@
         ]
 	},
 
-	"no-auth-pages": [
-        "pages/ajaxHandler"
-	],
-
     "enable-ajax-logging": true,
 
     "auth-ajax-actions": [

@@ -118,18 +118,18 @@ RCNotifs.prototype.loadNotifs = function(){
         //IF localstorage, AND localstorage has Notif DATA with key
         this.payload = JSON.parse(localStorage.getItem(this.redcap_notif_storage_key));
     }
-
     if( this.isStale() ){
         var _this = this;
-
         this.refreshFromServer().then(function(data) {
             // SUCCESFUL, parse Notifs and store in this.notif
             var response = decode_object(data);
             if(response){
-                console.log("refershfrom server promise returned", response);
+                console.log("refersh from server promise returned", response);
                 _this.parseNotifs(response);
             }
         }).catch(function(err) {
+            console.log('Load notifs failure...')
+            console.log(err)
             // Run this when promise was rejected via reject()
             // _this.parent.Log("Error loading or parsing notifs, do nothing they just wont see the notifs this time");
         });
@@ -241,8 +241,6 @@ RCNotifs.prototype.pollNotifsDisplay = function(){
             _this.loadNotifs();
         }else if(_this.payload.server.updated){
             _this.showNotifs();
-        }else{
-            // _this.parent.Log("no payload to display yet", {});
         }
     }, this.default_polling_int);
 }
@@ -260,11 +258,11 @@ RCNotifs.prototype.pollForceRefresh = function(){
 RCNotifs.prototype.setEndpointFalse = function (err){
     this.serverOK = false;
     if(err){
+        console.log(`Ajax has failed, disabling interval polling | Server OK: ${this.serverOK} | DismissIntervalID: ${this.DismissIntervalID} | ForceRefreshInterval: ${this.forceRefreshIntervalID}`);
         clearInterval(this.DismissIntervalID);
         clearInterval(this.forceRefreshIntervalID);
-        console.log("AJAX FAILED FOR WHATEVER REASON SO DONT LET IT THROUGH AGAIN" , this.serverOK, this.DismissIntervalID, this.forceRefreshIntervalID, err);
+        clearInterval(this.notifDisplayIntervalID)
     }
-
 }
 
 //UI display and behavior
@@ -334,7 +332,6 @@ RCNotifs.prototype.hideNotifs = function(notif_type){
 RCNotifs.prototype.buildNotifs = function(){
     var _this           = this;
     var all_notifs      = this.notif_objs;
-
     var html_cont       = {};
     html_cont["banner"] = $(banner_container);
     html_cont["modal"]  = $(modal_container);
