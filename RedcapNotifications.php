@@ -79,13 +79,19 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @return void
      */
     function redcap_every_page_top($project_id) {
-        try {
-            //TODO COMMENT THIS OUT FOR NOW UNTIL WE CAN SOLVE DISABLED EM ERROR LOGGING FLOOD
-            // in case we are loading record homepage load its the record children if existed
+        $allowed_pages = [
+            'ProjectSetup/index.php',
+            'ProjectSetup/other_functionality.php',
+            'index.php',
+            'Design/online_designer.php',
+            'Surveys/invite_participants.php',
+            'DataEntry/record_status_dashboard.php',
+            'DataExport/index.php',
+            'UserRights/index.php'
+        ];
+
+//        if(in_array(PAGE, $allowed_pages))
 //            $this->injectREDCapNotifs();
-        } catch (\Exception $e) {
-            // TODO routine to handle exception , probably nothing, catch them next time.
-        }
     }
 
     /**
@@ -557,7 +563,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
                 // console.log("injecting the jsmo into the page output html , and setting initial config data");
                 const module    = <?=$this->getJavascriptModuleObjectName()?>;
                 module.config   = <?=json_encode($notifs_config)?>;
-                module.afterRender(<?=$this->getJavascriptModuleObjectName()?>.InitFunction);
+                module.afterRender(module.InitFunction);
             })
         </script>
         <?php

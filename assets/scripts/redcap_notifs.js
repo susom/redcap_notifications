@@ -124,7 +124,7 @@ RCNotifs.prototype.loadNotifs = function(){
             // SUCCESFUL, parse Notifs and store in this.notif
             var response = decode_object(data);
             if(response){
-                console.log("refersh from server promise returned", response);
+                console.log("Refresh from server promise returned", response);
                 _this.parseNotifs(response);
             }
         }).catch(function(err) {
