@@ -90,8 +90,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
             'UserRights/index.php'
         ];
 
-//        if(in_array(PAGE, $allowed_pages))
-//            $this->injectREDCapNotifs();
+        if(in_array(PAGE, $allowed_pages))
+            $this->injectREDCapNotifs();
     }
 
     /**
@@ -105,7 +105,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      */
     public function refreshNotifications($pid, $user, $since_last_update=null, $project_or_system_or_both=null) {
         //TODO MAKE SURE THIS DOESNT FIRE
-        return;
+//        return;
         $refreshStart = hrtime(true);
 
         $this->emDebug("In refreshNotifications: pid $pid, since last update: $since_last_update, note type: $project_or_system_or_both, for user $user");
@@ -532,9 +532,10 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $notifs_jsmo        = $this->getUrl("assets/scripts/notifs.js", true);
         $utility_js         = $this->getUrl("assets/scripts/utility.js", true);
 
-        $notifs_cls         = $this->getUrl("assets/scripts/redcap_notifs.js", true);
+//        $notifs_cls         = $this->getUrl("assets/scripts/redcap_notifs.js", true);
         $notif_cls          = $this->getUrl("assets/scripts/redcap_notif.js", true);
         $notif_css          = $this->getUrl("assets/styles/redcap_notifs.css", true);
+        $test_not = $this->getUrl("assets/scripts/Notification.js", true);
 
         $cur_user           = $this->getUser()->getUsername();
         $snooze_duration    = $this->getSystemSetting("redcap-notifs-snooze-minutes") ?? self::DEFAULT_NOTIF_SNOOZE_TIME_MIN;
@@ -553,8 +554,10 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         //Initialize JSMO
         $this->initializeJavascriptModuleObject();
         ?>
+
+        <script src="<?= $test_not ?>" type="text/javascript"></script>
         <script src="<?= $utility_js ?>" type="text/javascript"></script>
-        <script src="<?= $notifs_cls?>" type="text/javascript"></script>
+<!--        <script src="--><?php //= $notifs_cls?><!--" type="text/javascript"></script>-->
         <script src="<?= $notif_cls?>" type="text/javascript"></script>
         <script src="<?= $notifs_jsmo?>" type="text/javascript"></script>
         <link rel="stylesheet" href="<?= $notif_css ?>">
