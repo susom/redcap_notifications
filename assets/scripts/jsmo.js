@@ -10,7 +10,7 @@
             // console.log("JSMO Init Function");
             // console.log("integrating display class RCNotifs");
             module.config["parent"] = module;
-            module.notifs           = new Notification(module.config);
+            module.notifs           = new NotificationController(module.config);
             module.notifs.initialize()
         },
 
