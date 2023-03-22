@@ -50,13 +50,13 @@ class NotificationController {
     //Function called once to begin setInterval upon page load
     initialize() {
         //load and parse notifs
-        this.loadNotifs();
+        this.loadNotifications();
 
         //KICK OFF POLL TO SHOW NOTIFS (IF NOT SNOOZED)
         if (this.payload.server.updated) {
             //first time just call it , then interval 30 seconds there after
             this.getForceRefresh();
-            this.showNotifs();
+            this.showNotifications();
         }
         if (this.payload.client.dismissed.length) {
             //first time just call it , then interval 30 seconds there after
@@ -66,7 +66,7 @@ class NotificationController {
         this.startPolling();
     }
 
-    loadNotifs() {
+    loadNotifications() {
         if (localStorage.getItem(this.redcap_notif_storage_key))
             this.payload = JSON.parse(localStorage.getItem(this.redcap_notif_storage_key))
 
@@ -77,7 +77,7 @@ class NotificationController {
                 var response = decode_object(data);
                 if (response) {
                     console.log("Refresh from server promise returned", response);
-                    _this.parseNotifs(response);
+                    _this.parseNotifications(response);
                 }
             }).catch(function (err) {
                 console.log('Load notifs failure...')
@@ -86,7 +86,7 @@ class NotificationController {
                 // _this.parent.Log("Error loading or parsing notifs, do nothing they just wont see the notifs this time");
             });
         } else {
-            this.buildNotifUnits();
+            this.generateNotificationArray();
         }
 
         return;
@@ -130,7 +130,7 @@ class NotificationController {
         }
     }
 
-    parseNotifs(data) {
+    parseNotifications(data) {
         var client_date_time = getClientDateTime();
         var client_offset = getDifferenceInHours(new Date(data["server_time"]), new Date(client_date_time)) + "h";
 
@@ -149,7 +149,7 @@ class NotificationController {
 
         //fresh payload, need to clear out notifs cache.
         this.notif_objs = [];
-        this.buildNotifUnits();
+        this.generateNotificationArray();
 
         //TODO TEMPORARY UNTIL FIGURE OUT AJAX
         // if(!this.survey_payload){
@@ -162,10 +162,10 @@ class NotificationController {
         }
 
         //i just do this?
-        this.showNotifs();
+        this.showNotifications();
     }
 
-    // Checking to see which notifications have been altered on the server (to update UI & determine what content to pull)
+    //Function that checks which notifications have been altered & Flag set on the server (to update UI & determine what content to pull)
     getForceRefresh() {
         var _this = this;
         var data = {};
@@ -185,7 +185,7 @@ class NotificationController {
                                 //one match is enough to refresh entire payload
                                 _this.force_refresh = true;
                                 // _this.parent.Log("Notif " + notif_o.getRecordId() + " needs force refresh at " + forced_refresh_list[notif_o.getRecordId()], {});
-                                _this.loadNotifs();
+                                _this.loadNotifications();
                                 break;
                             }
                         }
@@ -214,9 +214,9 @@ class NotificationController {
         var _this = this;
         this.notifDisplayIntervalID = setInterval(function () {
             if (_this.isStale()) {
-                _this.loadNotifs();
+                _this.loadNotifications();
             } else if (_this.payload.server.updated) {
-                _this.showNotifs();
+                _this.showNotifications();
             }
         }, this.default_polling_int);
     }
@@ -243,7 +243,10 @@ class NotificationController {
         }
     }
 
-    showNotifs() {
+    /**
+     * Take built UI and inject
+     */
+    showNotifications() {
         //Check against the snoozed notifs
         //Also check against FUTURE start time stamps
         if (!this.notif_objs.length) {
@@ -254,10 +257,10 @@ class NotificationController {
         this.hideNotifs("modal");
 
         //rebuild everytime?
-        this.buildNotifs();
+        this.buildNotifications();
 
 
-        //actually inject banner_jq and modal_jq into the dom from buildNotifs.
+        //actually inject banner_jq and modal_jq into the dom from buildNotifications.
         if (!this.isSnoozed("banner") && this.banner_jq && this.banner_jq.find(".notif.alert").length) {
             if (!$("#redcap_banner_notifs").length && ($("#subheader").length || $("#container").length)) {
                 if (this.getCurPage() == "surveys/index.php") {
@@ -369,9 +372,9 @@ class NotificationController {
 
     /**
      * Bind all events to notifications, set onCLick handlers
-     * Take notif units (array of notifications) and
+     * Take Notifications (array) and set banner_jq & modal_jq for later injection
      */
-    buildNotifs() {
+    buildNotifications() {
         let all_notifs = this.notif_objs;
         let html_cont = {};
         html_cont["banner"] = $(this.getBannerContainerUI());
@@ -454,8 +457,8 @@ class NotificationController {
         }
     }
 
-    // generate actual notifications here, storing as an array
-    buildNotifUnits() {
+    // Generate array of notifications here for use later.
+    generateNotificationArray() {
         if (this.payload.notifs.length) {
             var dismissed_ids = [];
 
