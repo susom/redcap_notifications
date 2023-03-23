@@ -151,10 +151,9 @@ class NotificationController {
         this.notif_objs = [];
         this.generateNotificationArray();
 
-        //TODO TEMPORARY UNTIL FIGURE OUT AJAX
-        // if(!this.survey_payload){
-        //     localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
-        // }
+        if(!this.survey_payload){
+            localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
+        }
 
         if (this.force_refresh) {
             //TODO DOES IT MAKE SENSE TO LOAD JUST NEW STUFF SINCE THE LAST UPDATE AND CONCATING , OR JUST PULL ENTIRELY NEW FRESH BATCH?
@@ -349,10 +348,10 @@ class NotificationController {
 
         modal.find(".dismiss_all").click(function () {
             // _this.parent.Log("dismmiss all dismissable modal", "debug");
-            if (html_cont["modal"].find(".dismissable").length) {
+            if (modal.find(".dismissable").length) {
                 // _this.parent.Log("how many modal notifs to dismiss? " + html_cont["modal"].find(".dismissable .notif_hdr button").length, "debug");
 
-                html_cont["modal"].find(".dismissable .notif_hdr button").each(function () {
+                modal.find(".dismissable .notif_hdr button").each(function () {
                     if ($(this).is(":visible")) {
                         $(this).trigger("click");
                     }
@@ -440,6 +439,7 @@ class NotificationController {
     }
 
     resolveDismissed(remove_notifs) {
+        // remove_notifs.find((el) => this.payload.client.dismissed)
         var i = this.payload.client.dismissed.length
         while (i--) {
             if ($.inArray(this.payload.client.dismissed[i]["record_id"], remove_notifs) > -1) {

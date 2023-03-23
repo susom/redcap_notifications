@@ -700,7 +700,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
                     $this->emDebug("Save Return results: " . json_encode($results) . " for notification: " . json_encode($dismissData));
 
                     $return_o               = $return_ids;
-                    $return_o["success"]    = true;
                 }else{
                     $this->emError("Cannot save dismissed notification because record set was empty or there was invalid data");
                     $return_o = ["success" => false];
