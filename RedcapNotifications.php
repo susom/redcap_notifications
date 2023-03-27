@@ -79,19 +79,22 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @return void
      */
     function redcap_every_page_top($project_id) {
-        $allowed_pages = [
-            'ProjectSetup/index.php',
-            'ProjectSetup/other_functionality.php',
-            'index.php',
-            'Design/online_designer.php',
-            'Surveys/invite_participants.php',
-            'DataEntry/record_status_dashboard.php',
-            'DataExport/index.php',
-            'UserRights/index.php'
-        ];
+        if(defined('USERID')) //Ensure user is logged in before attempting to render any notifications
+        {
+            $allowed_pages = [
+                'ProjectSetup/index.php',
+                'ProjectSetup/other_functionality.php',
+                'index.php',
+                'Design/online_designer.php',
+                'Surveys/invite_participants.php',
+                'DataEntry/record_status_dashboard.php',
+                'DataExport/index.php',
+                'UserRights/index.php'
+            ];
 
-        if(in_array(PAGE, $allowed_pages))
-            $this->injectREDCapNotifs();
+            if(in_array(PAGE, $allowed_pages))
+                $this->injectREDCapNotifs();
+        }
     }
 
     /**

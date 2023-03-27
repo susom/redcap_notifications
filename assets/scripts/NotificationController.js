@@ -440,6 +440,8 @@ class NotificationController {
 
     resolveDismissed(remove_notifs) {
         // remove_notifs.find((el) => this.payload.client.dismissed)
+
+
         var i = this.payload.client.dismissed.length
         while (i--) {
             if ($.inArray(this.payload.client.dismissed[i]["record_id"], remove_notifs) > -1) {
