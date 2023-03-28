@@ -17,7 +17,7 @@
         callAjax: function (action, payload, success_cb, err_cb) {
             module.ajax(action, payload).then(function (response) {
                 // Process response
-                console.log(action + " Ajax Result: ", response);
+                // console.log(action + " Ajax Result: ", response);
                 if (success_cb instanceof Function) {
                     success_cb(response);
                 }
@@ -32,7 +32,7 @@
 
         Log: function(subject, msg_o){
             module.log(subject, msg_o).then(function(logId) {
-                console.log("message logged", logId, subject, msg_o);
+                // console.log("message logged", logId, subject, msg_o);
             }).catch(function(err) {
                 console.log("Logging message failure:", err);
             });
