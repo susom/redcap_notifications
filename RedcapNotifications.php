@@ -16,9 +16,9 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     const DEFAULT_NOTIF_REFRESH_TIME_HOUR   = 6;
     private $SURVEY_USER                    = '[survey respondent]';
 
-    public function __construct() {
-		parent::__construct();
-	}
+//    public function __construct() {
+//		parent::__construct();
+//	}
 
     /**
      *  Using this function to update the [note_last_update_time] field of a notification
