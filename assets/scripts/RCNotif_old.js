@@ -95,7 +95,7 @@
 //     this.setDismissed();
 //
 //     var data = {
-//         "record_id": this.notif.record_id,
+//         "notification_id": this.notif.record_id,
 //         "note_name": this.notif.note_name,
 //         "note_username": this.parent.user
 //     };

@@ -1,3 +1,6 @@
+/**
+ * TODO: Describe this class
+ */
 class Notification {
     notif;
     parent;
@@ -97,7 +100,7 @@ class Notification {
         this.setDismissed();
 
         let data = {
-            "record_id": this.notif.record_id,
+            "notification_id": this.notif.record_id,
             "note_name": this.notif.note_name,
             "note_username": this.parent.user
         };
@@ -120,7 +123,7 @@ class Notification {
         let notif_start_ts  = new Date(this.parent.getOffsetTime(notif_start_str));
         this.future         = notif_start_ts.getTime() > Date.now();
         if(this.future){
-            this.parent.console.log("notif " + this.getRecordId() + " has future start date dont show yet", "info");
+            this.parent.console.log("notif " + this.getId() + " has future start date dont show yet", "info");
         }
         return this.future;
     }
@@ -129,7 +132,7 @@ class Notification {
         let notif_end_ts  = new Date(this.parent.getOffsetTime(notif_end_str));
         this.expired         = notif_end_ts.getTime() < Date.now();
         if(this.expired){
-            this.parent.console.log("notif " + this.getRecordId() + " is expired, it should clear out next refresh , for now hide it", "info");
+            this.parent.console.log("notif " + this.getId() + " is expired, it should clear out next refresh , for now hide it", "info");
         }
         return this.expired;
     }
@@ -184,7 +187,7 @@ class Notification {
     getName(){
         return this.notif.note_name;
     }
-    getRecordId(){
+    getId(){
         return this.notif.record_id;
     }
     getSubject(){

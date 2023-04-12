@@ -16,6 +16,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     const DEFAULT_NOTIF_REFRESH_TIME_HOUR   = 6;
     private $SURVEY_USER                    = '[survey respondent]';
 
+
+
     public function __construct() {
 		parent::__construct();
 	}
@@ -37,6 +39,9 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     function redcap_save_record($project_id, $record, $instrument, $event_id, $group_id,
                                 $survey_hash, $response_id, $repeat_instance)
     {
+
+        // TODO: Look at doing this so it isn't part of save_record...
+
         // If this is the notification project, update the latest update date
         $notification_pid = $this->getSystemProjectIDs('notification-pid');
         if ($notification_pid == $project_id and !empty($record)) {
@@ -61,7 +66,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
             // Save the last record update date/time
             $saveData = array(
                 array(
-                    "record_id" => $record,
+                    "notification_id" => $record,
                     "note_last_update_time" => $last_update_ts
                 )
             );
@@ -79,7 +84,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @return void
      */
     function redcap_every_page_top($project_id) {
-        if(defined('USERID')) //Ensure user is logged in before attempting to render any notifications
+        if(defined('USERID') && !empty(USERID)) //Ensure user is logged in before attempting to render any notifications
         {
             $allowed_pages = [
                 'ProjectSetup/index.php',
@@ -91,10 +96,17 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
                 'DataExport/index.php',
                 'UserRights/index.php'
             ];
-
-            if(in_array(PAGE, $allowed_pages))
-                $this->injectREDCapNotifs();
+        } else {
+            // Not Authenticated Pages
+            // $allowed_pages = [
+            //     'Surveys/index.php'
+            // ];
         }
+
+        if(in_array(PAGE, $allowed_pages)) {
+            $this->injectREDCapNotifs();
+        }
+
     }
 
     /**
@@ -526,7 +538,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     /**
      * INJECT FRONT END CODE TO DISPLAY ALERTS.
      *
-     * @param $alerts
      * @return array
      */
     public function injectREDCapNotifs(){
@@ -540,6 +551,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $notif_controller   = $this->getUrl("assets/scripts/NotificationController.js", true);
 
         $cur_user           = $this->getUser()->getUsername();
+
+        // TODO: Maybe move this to a single payload...
         $snooze_duration    = $this->getSystemSetting("redcap-notifs-snooze-minutes") ?? self::DEFAULT_NOTIF_SNOOZE_TIME_MIN;
         $refresh_limit      = $this->getSystemSetting("redcap-notifs-refresh-limit") ?? self::DEFAULT_NOTIF_REFRESH_TIME_HOUR;
 
@@ -687,15 +700,15 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
                     $data       = array();
                     $return_ids = array();
                     foreach($dismiss_notifs as $notif){
-                        $newRecordId = REDCap::reserveNewRecordId($dismissalPid);
+                        $newNotificationId = REDCap::reserveNewRecordId($dismissalPid);
                         $data[] = array(
-                            "record_id"                 => $newRecordId,
-                            "note_record_id"            => $notif["record_id"],
+                            "notification_id"                 => $newNotificationId,
+                            "note_record_id"            => $notif["notification_id"],
                             "note_name"                 => $notif['note_name'],
                             "note_username"             => $notif['note_username'],
                             "note_dismissal_datetime"   => $now
                         );
-                        $return_ids[] = $notif["record_id"];
+                        $return_ids[] = $notif["notification_id"];
                     }
 
                     $results = REDCap::saveData($dismissalPid, 'json', json_encode($data));

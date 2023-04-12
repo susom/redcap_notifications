@@ -434,7 +434,7 @@
 // RCNotifs.prototype.resolveDismissed = function(remove_notifs){
 //     var i = this.payload.client.dismissed.length
 //     while (i--) {
-//         if ($.inArray(this.payload.client.dismissed[i]["record_id"], remove_notifs) > -1) {
+//         if ($.inArray(this.payload.client.dismissed[i]["notification_id"], remove_notifs) > -1) {
 //             this.payload.client.dismissed.splice(i, 1);
 //             localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
 //         }
@@ -442,7 +442,7 @@
 //
 //     var i = this.payload.notifs.length
 //     while (i--) {
-//         if ($.inArray(this.payload.notifs[i]["record_id"], remove_notifs) > -1) {
+//         if ($.inArray(this.payload.notifs[i]["notification_id"], remove_notifs) > -1) {
 //             this.payload.notifs.splice(i, 1);
 //             localStorage.setItem(this.redcap_notif_storage_key,JSON.stringify(this.payload));
 //         }
@@ -453,7 +453,7 @@
 //         var dismissed_ids = [];
 //
 //         for(var i in this.payload.client.dismissed){
-//             dismissed_ids.push(this.payload.client.dismissed[i]["record_id"]);
+//             dismissed_ids.push(this.payload.client.dismissed[i]["notification_id"]);
 //         }
 //
 //         for(var i in this.payload.notifs){

@@ -1,3 +1,6 @@
+/**
+ * TODO: Describe what it does
+ */
 class NotificationController {
     default_polling_int = 30000; //30 seconds
     redcap_notif_storage_key; //Index for localstorage notification payload
@@ -52,6 +55,8 @@ class NotificationController {
         //load and parse notifs
         this.loadNotifications();
 
+        // We now have an array of notif_objs that are marked as dismissed if needed
+
         //KICK OFF POLL TO SHOW NOTIFS (IF NOT SNOOZED)
         if (this.payload.server.updated) {
             //first time just call it , then interval 30 seconds there after
@@ -99,7 +104,6 @@ class NotificationController {
 
         if (this.payload.server.updated) { //Default payload entry is null
             let hours_since_last_updated;
-
             hours_since_last_updated = getDifferenceInHours(new Date(this.getOffsetTime(this.payload.server.updated)), Date.now());
             if (hours_since_last_updated < this.refresh_limit) {
                 if (this.getEndpointStatus()) { //Ensure the endpoint is not offline
@@ -177,8 +181,8 @@ class NotificationController {
 
                     for (var i in _this.notif_objs) {
                         var notif_o = _this.notif_objs[i];
-                        if ($.inArray(notif_o.getRecordId(), force_record_ids) > -1) {
-                            var check_force = new Date(_this.getLastUpdate()) < new Date(forced_refresh_list[notif_o.getRecordId()]);
+                        if ($.inArray(notif_o.getId(), force_record_ids) > -1) {
+                            var check_force = new Date(_this.getLastUpdate()) < new Date(forced_refresh_list[notif_o.getId()]);
 
                             if (check_force) {
                                 //one match is enough to refresh entire payload
@@ -444,7 +448,7 @@ class NotificationController {
 
         var i = this.payload.client.dismissed.length
         while (i--) {
-            if ($.inArray(this.payload.client.dismissed[i]["record_id"], remove_notifs) > -1) {
+            if ($.inArray(this.payload.client.dismissed[i]["notification_id"], remove_notifs) > -1) {
                 this.payload.client.dismissed.splice(i, 1);
                 localStorage.setItem(this.redcap_notif_storage_key, JSON.stringify(this.payload));
             }
@@ -452,7 +456,7 @@ class NotificationController {
 
         var i = this.payload.notifs.length
         while (i--) {
-            if ($.inArray(this.payload.notifs[i]["record_id"], remove_notifs) > -1) {
+            if ($.inArray(this.payload.notifs[i]["notification_id"], remove_notifs) > -1) {
                 this.payload.notifs.splice(i, 1);
                 localStorage.setItem(this.redcap_notif_storage_key, JSON.stringify(this.payload));
             }
@@ -465,14 +469,14 @@ class NotificationController {
             var dismissed_ids = [];
 
             for (var i in this.payload.client.dismissed) {
-                dismissed_ids.push(this.payload.client.dismissed[i]["record_id"]);
+                dismissed_ids.push(this.payload.client.dismissed[i]["notification_id"]);
             }
 
             for (var i in this.payload.notifs) {
                 var notif = new Notification(this.payload.notifs[i], this);
 
                 //if in dimissed queue dont show
-                if ($.inArray(notif.getRecordId(), dismissed_ids) > -1) {
+                if ($.inArray(notif.getId(), dismissed_ids) > -1) {
                     notif.setDismissed();
                 }
 
