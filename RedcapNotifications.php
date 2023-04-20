@@ -82,7 +82,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         try {
             //TODO COMMENT THIS OUT FOR NOW UNTIL WE CAN SOLVE DISABLED EM ERROR LOGGING FLOOD
             // in case we are loading record homepage load its the record children if existed
-//            $this->injectREDCapNotifs();
+            $this->injectREDCapNotifs();
         } catch (\Exception $e) {
             // TODO routine to handle exception , probably nothing, catch them next time.
         }
@@ -98,8 +98,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @return array|null
      */
     public function refreshNotifications($pid, $user, $since_last_update=null, $project_or_system_or_both=null) {
-        //TODO MAKE SURE THIS DOESNT FIRE
-        return;
         $refreshStart = hrtime(true);
 
         $this->emDebug("In refreshNotifications: pid $pid, since last update: $since_last_update, note type: $project_or_system_or_both, for user $user");
