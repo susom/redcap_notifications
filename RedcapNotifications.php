@@ -16,9 +16,9 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     const DEFAULT_NOTIF_REFRESH_TIME_HOUR   = 6;
     private $SURVEY_USER                    = '[survey respondent]';
 
-    public function __construct() {
-		parent::__construct();
-	}
+//    public function __construct() {
+//		parent::__construct();
+//	}
 
     /**
      *  Using this function to update the [note_last_update_time] field of a notification
@@ -79,12 +79,21 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @return void
      */
     function redcap_every_page_top($project_id) {
-        try {
-            //TODO COMMENT THIS OUT FOR NOW UNTIL WE CAN SOLVE DISABLED EM ERROR LOGGING FLOOD
-            // in case we are loading record homepage load its the record children if existed
-            $this->injectREDCapNotifs();
-        } catch (\Exception $e) {
-            // TODO routine to handle exception , probably nothing, catch them next time.
+        if(defined('USERID')) //Ensure user is logged in before attempting to render any notifications
+        {
+            $allowed_pages = [
+                'ProjectSetup/index.php',
+                'ProjectSetup/other_functionality.php',
+                'index.php',
+                'Design/online_designer.php',
+                'Surveys/invite_participants.php',
+                'DataEntry/record_status_dashboard.php',
+                'DataExport/index.php',
+                'UserRights/index.php'
+            ];
+
+            if(in_array(PAGE, $allowed_pages))
+                $this->injectREDCapNotifs();
         }
     }
 
@@ -521,12 +530,12 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     public function injectREDCapNotifs(){
         global $Proj;
 
-        $notifs_jsmo        = $this->getUrl("assets/scripts/notifs.js", true);
+        $notifs_jsmo        = $this->getUrl("assets/scripts/jsmo.js", true);
         $utility_js         = $this->getUrl("assets/scripts/utility.js", true);
 
-        $notifs_cls         = $this->getUrl("assets/scripts/redcap_notifs.js", true);
-        $notif_cls          = $this->getUrl("assets/scripts/redcap_notif.js", true);
+        $notif_cls          = $this->getUrl("assets/scripts/Notification.js", true);
         $notif_css          = $this->getUrl("assets/styles/redcap_notifs.css", true);
+        $notif_controller   = $this->getUrl("assets/scripts/NotificationController.js", true);
 
         $cur_user           = $this->getUser()->getUsername();
         $snooze_duration    = $this->getSystemSetting("redcap-notifs-snooze-minutes") ?? self::DEFAULT_NOTIF_SNOOZE_TIME_MIN;
@@ -545,17 +554,17 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         //Initialize JSMO
         $this->initializeJavascriptModuleObject();
         ?>
+
+        <script src="<?= $notif_controller ?>" type="text/javascript"></script>
         <script src="<?= $utility_js ?>" type="text/javascript"></script>
-        <script src="<?= $notifs_cls?>" type="text/javascript"></script>
         <script src="<?= $notif_cls?>" type="text/javascript"></script>
         <script src="<?= $notifs_jsmo?>" type="text/javascript"></script>
         <link rel="stylesheet" href="<?= $notif_css ?>">
         <script>
             $(function() {
-                // console.log("injecting the jsmo into the page output html , and setting initial config data");
                 const module    = <?=$this->getJavascriptModuleObjectName()?>;
                 module.config   = <?=json_encode($notifs_config)?>;
-                module.afterRender(<?=$this->getJavascriptModuleObjectName()?>.InitFunction);
+                module.afterRender(module.InitFunction);
             })
         </script>
         <?php
@@ -692,7 +701,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
                     $this->emDebug("Save Return results: " . json_encode($results) . " for notification: " . json_encode($dismissData));
 
                     $return_o               = $return_ids;
-                    $return_o["success"]    = true;
                 }else{
                     $this->emError("Cannot save dismissed notification because record set was empty or there was invalid data");
                     $return_o = ["success" => false];

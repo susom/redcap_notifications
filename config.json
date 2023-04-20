@@ -1,5 +1,5 @@
 {
-	"name": "RedcapNotifications",
+	"name": "REDCap_Notifications",
 
 	"namespace": "Stanford\\RedcapNotifications",
 
@@ -50,10 +50,6 @@
         ]
 	},
 
-	"no-auth-pages": [
-        "pages/ajaxHandler"
-	],
-
     "enable-ajax-logging": true,
 
     "auth-ajax-actions": [
@@ -82,8 +78,30 @@
 
 	"system-settings": [
         {
+            "key": "header",
+            "name": "<h6><b>REDCap Notification EM</b></h6></div>",
+            "type": "descriptive"
+        },
+        {
+            "key": "instructions",
+            "name": "<b>For First time setup</b><p>Please check the boxes above to enable this EM on all projects by default and to hide this EM from all non-admins</i></div>",
+            "type": "descriptive"
+        },
+        {
+            "key": "notification-pid",
+            "name": "<b>Notifications PID</b><i></i> Project ID where notifications are created and stored",
+            "required": true,
+            "type": "project-id"
+        },
+        {
+            "key": "dismissal-pid",
+            "name": "<b>Notifications that were dismissed PID</b><i></i> Project ID where notifications were viewed and dismissed",
+            "required": true,
+            "type": "project-id"
+        },
+        {
             "key": "redcap-notifs-snooze-minutes",
-            "name": "Time in <b>minutes</b> that the snooze will hide REDCap Notifs",
+            "name": "Time in <b>minutes</b> that the snooze button will hide REDCap Notifications",
             "required": false,
             "type": "text"
         },
@@ -101,7 +119,7 @@
 		},
         {
             "key": "max-expiry-days",
-            "name": "<b>Max number of days notifications will be displayed</b><i></i> If an expiry date is not entered, the notification will expire after this many days.",
+            "name": "<b>Max number of days notifications will be displayed</b><i></i> If an expiry date is not entered, the notification will expire after this many days",
             "required": true,
             "type": "text"
         },
@@ -110,18 +128,6 @@
             "name": "<b>Comma separated List of UserIDs to trigger custom debugs</b><i></i> We are tryign to figure out why a subset of userids are triggering callbacks every 30 seconds instead of honoring the 6 hour grace time",
             "required": false,
             "type": "note"
-        },
-        {
-            "key": "notification-pid",
-            "name": "<b>Notifications PID</b><i></i> Project ID where notifications are created and stored.",
-            "required": true,
-            "type": "project-id"
-        },
-        {
-            "key": "dismissal-pid",
-            "name": "<b>Notifications that were dismissed PID</b><i></i> Project ID where notifications were viewed and dismissed.",
-            "required": true,
-            "type": "project-id"
         }
 	],
 

@@ -41,16 +41,16 @@ There are several ways notifications can be created:
 
 # How it works
 
-On every page load.  The Notifications EM will inject a client side controller class (notifs.js + supporting files) into the html.
+On every page load.  The Notifications EM will inject a client side controller class (jsmo.js + supporting files) into the html.
 
 On initialization the controller will first check the browser's LocalStorage for a cached Notifications payload which contains all current and future Notifications for the current User (if any) using the key ["redcapNotifications" + _USER].
 
 The controller will then parse the Notifications payload to display any system-wide or project specific notifications in the proper context for the current User.
 
-The Notifications payload is timestamped.  On each interval of the refreshNotifs() polling function, the delta between the client's offset local time and the cached payload's last updated timestamp is evaluated.  If the delta is *greater than the default refresh limit of 6 hours, a new Notifications payload will be requested from the server and replace the current cache.
+The Notifications payload is timestamped.  On each interval of the polling function, the delta between the client's offset local time and the cached payload's last updated timestamp is evaluated.  If the delta is *greater than the default refresh limit of 6 hours, a new Notifications payload will be requested from the server and replace the current cache.
 In some circumstances an immediate update is required and can be initiated from the REDCap Notifications project (by checking ["force_refresh"] in the record for the Notification).  The main EM will monitor an EM system-settings flag to determine if the refresh limit shall be *over-ridden.
 
-Some notification are "dismissable".  For those notifs, a "dismiss" button will be presented.  If pressed, the controller updates the UI accordingly and caches the dismissed notification in a dismissed notification list/queue.  At regular
+Some notification are "dismissable".  For those notifications, a "dismiss" button will be presented.  If pressed, the controller updates the UI accordingly and caches the dismissed notification in a dismissed notification list/queue.  At regular
 intervals, the dismissed notification list will be sent back to the server in batch and stored in the Notification Dismissed project to be excluded from the user's future Notifications payloads.
 
 
