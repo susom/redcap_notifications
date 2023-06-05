@@ -191,15 +191,16 @@ class NotificationController {
     getForceRefresh() {
         var _this = this;
         var data = {
-            "user" : _this.user
+            "user" : _this.user,
+            "last_updated" : _this.getLastUpdate()
         };
 
         if (this.getEndpointStatus()) {
             _this.parent.callAjax("check_forced_refresh", data, function (response) {
-                var result = response.result;
+                var result = response.results;
                 if (result) {
                     var forced_refresh_list = decode_object(result);
-                    var force_record_ids = Object.keys(forced_refresh_list);
+                    var force_record_ids    = Object.keys(forced_refresh_list);
 
                     for (var i in _this.notif_objs) {
                         var notif_o = _this.notif_objs[i];
@@ -225,7 +226,7 @@ class NotificationController {
     startPolling() {
         this.pollNotifsDisplay();
         this.pollDismissNotifs();
-        // this.pollForceRefresh();
+        this.pollForceRefresh();
     }
 
     pollDismissNotifs() {
@@ -252,7 +253,7 @@ class NotificationController {
             var payload_last_update = _this.getLastUpdate();
 
             if (payload_last_update) {
-
+                console.log("has last updaet so check get force refresh?", payload_last_update);
                 _this.getForceRefresh();
             }
         }, this.default_polling_int);
