@@ -653,7 +653,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         //REMOVE THIS SWITCH WHEN WORKFLOW FINALIZED
         switch($action){
             case "get_full_payload":
-            case "save_dismissal":
+            case "save_dismissals":
             case "check_forced_refresh":
 
                 // CHECK
@@ -674,6 +674,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
                     $result     = array();
 
                     if(empty($json_str)){
+                        $this->emDebug("not in queue, make new job in queue for $job_id", $payload);
+
                         //NOT IN QUEUE SO ADD IT AND SAVE IT AND RETURN EMPTY ARRAY with property indicating in QUEUE
                         $payload = $payload ?? [];
                         $jobQueue->setValue($job_id, json_encode($payload));
@@ -685,16 +687,19 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
                         if(array_key_exists("results", $json)){
                             $result = $json["results"];
 
-                            $this->emDebug("ok got the jobresult now return it and delete it from queue?");
+//                            $this->emDebug("ok got the jobresult for $action now return it (and delete it from queue?)", $result);
 
                             //AND DELETE THE JOB ID ONLY NOT THE ENTIRE QUEUE (do this by setting value to Null)
-                            //MAYBE DO A MASs DELETE CRON RATHER THAN ... ATOMIC DELETE? yeah use clearJobQueue();
-                            //$jobQueue->setValue($job_id, null);
-                            //$jobQueue->save();
+                            //OR MAYBE DO A MASS DELETE CRON RATHER THAN ... ATOMIC DELETE? yeah use clearJobQueue();
+                            if($action == "check_forced_refresh"){
+                                //BUT FORCE REFRESH NEEDS TO BE MORE REACTIVE SO DELETE THOSE ASAP
+                                $jobQueue->setValue($job_id, null);
+                                $jobQueue->save();
+                            }
                         }
                     }
 
-                    $return_o               = $result;
+                    $return_o["results"]    = $result;
                     $return_o["success"]    = true;
                 }
                 break;

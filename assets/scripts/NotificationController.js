@@ -131,8 +131,9 @@ class NotificationController {
         };
 
         function recursiveCall(resolve, reject) {
-            _this.parent.callAjax("get_full_payload", data, function(result){
+            _this.parent.callAjax("get_full_payload", data, function(response){
                 // If the result indicates the request is queued (sucess with no payload), then temporarily set a timeout for 90 seconds to call itself again.
+                var result = response["results"];
                 if( !result.hasOwnProperty("notifs") ) {
                     console.log("it is in_queue, call ajax again in 90 sec");
                     setTimeout(function(){
@@ -194,7 +195,8 @@ class NotificationController {
         };
 
         if (this.getEndpointStatus()) {
-            _this.parent.callAjax("check_forced_refresh", data, function (result) {
+            _this.parent.callAjax("check_forced_refresh", data, function (response) {
+                var result = response.result;
                 if (result) {
                     var forced_refresh_list = decode_object(result);
                     var force_record_ids = Object.keys(forced_refresh_list);
@@ -223,7 +225,7 @@ class NotificationController {
     startPolling() {
         this.pollNotifsDisplay();
         this.pollDismissNotifs();
-        this.pollForceRefresh();
+        // this.pollForceRefresh();
     }
 
     pollDismissNotifs() {
@@ -451,7 +453,8 @@ class NotificationController {
             }
 
             _this.parent.callAjax("save_dismissals", data, function (result) {
-                if (result) {
+                var result = result.results;
+                if (result.length) {
                     // _this.parent.Log("dismissNotif Sucess", {});
                     _this.resolveDismissed(result);
                 }
@@ -466,8 +469,7 @@ class NotificationController {
     resolveDismissed(remove_notifs) {
         // remove_notifs.find((el) => this.payload.client.dismissed)
 
-
-        var i = this.payload.client.dismissed.length
+        var i = this.payload.client.dismissed.length;
         while (i--) {
             if ($.inArray(this.payload.client.dismissed[i]["record_id"], remove_notifs) > -1) {
                 this.payload.client.dismissed.splice(i, 1);
@@ -475,7 +477,7 @@ class NotificationController {
             }
         }
 
-        var i = this.payload.notifs.length
+        var i = this.payload.notifs.length;
         while (i--) {
             if ($.inArray(this.payload.notifs[i]["record_id"], remove_notifs) > -1) {
                 this.payload.notifs.splice(i, 1);

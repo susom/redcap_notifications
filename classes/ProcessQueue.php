@@ -71,7 +71,6 @@ class ProcessQueue extends SimpleEmLogObject
         //first check if existing jobQueue
         $jobQueue = self::queryObjects($module, self::OBJECT_NAME);
         if(empty($jobQueue)){
-            $module->emDebug("empty? fuck you");
             $jobQueue = ProcessQueue::createJobQueue($module);
             $jobQueue->save();
         }else{
