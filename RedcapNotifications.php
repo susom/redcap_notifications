@@ -2,11 +2,14 @@
 namespace Stanford\RedcapNotifications;
 
 require_once "emLoggerTrait.php";
+require_once "classes/ProcessQueue.php";
 
+use Composer\XdebugHandler\Process;
 use REDCap;
 use Exception;
 use DateTime;
 use REDCapEntity\Page;
+
 
 class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 
@@ -110,7 +113,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         $refreshStart = hrtime(true);
 
         $this->emDebug("In refreshNotifications: pid $pid, since last update: $since_last_update, note type: $project_or_system_or_both, for user $user");
-        $this->emDebug("why i aint getting shit?", $project_or_system_or_both);
 
         if (empty($project_or_system_or_both)) {
             return null;
@@ -153,7 +155,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 
         // Only retrieve project notifications if asked for
         if ($project_or_system_or_both == 'project' || $project_or_system_or_both == 'both') {
-
             // Pull all project level notifications
             $notif_proj_payload    = $this->getProjectNotifications($user, $notification_pid, $now, $allProjectslists,
                 $dcProjects, $projAdminProjects, $dismissed, $since_last_update, $pid);
@@ -548,13 +549,13 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
             "refresh_limit"             => $refresh_limit,
             "current_page"              => PAGE,
             "project_id"                => !empty($Proj) ? $Proj->project_id : null,
-            "dev_prod_status"           => !empty($Proj) ? $Proj->status : null
+            "dev_prod_status"           => !empty($Proj) ? $Proj->status : null,
+            "php_session"               => session_id()
         );
 
         //Initialize JSMO
         $this->initializeJavascriptModuleObject();
         ?>
-
         <script src="<?= $notif_controller ?>" type="text/javascript"></script>
         <script src="<?= $utility_js ?>" type="text/javascript"></script>
         <script src="<?= $notif_cls?>" type="text/javascript"></script>
@@ -644,91 +645,181 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 //            $page_full,
 //            $user_id
 //        );
+//        $this->emDebugForCustomUseridList($action,$payload,$project_id,$page_full);
 
         $return_o = ["success" => false];
 
-        $this->emDebugForCustomUseridList($action,$payload,$project_id,$page_full);
-
+        //NO LONGER SEPARATE ACTIONS, THEY ALL FLOW THROUGH QUEUE
+        //REMOVE THIS SWITCH WHEN WORKFLOW FINALIZED
         switch($action){
-            case "refresh":
-                try {
-                    $last_updated_post  = $payload['last_updated'];
-                    $proj_or_sys_post   = $payload['proj_or_sys'];
-                    $last_updated       = isValid($last_updated_post, 'Y-m-d H:i:s') ? $last_updated_post : null;
-                    $project_or_system  = $proj_or_sys_post ?? null;
-                    $all_notifications      = $this->refreshNotifications($project_id, $this->getUser()->getUsername(), $last_updated, $project_or_system);
+            case "get_full_payload":
+            case "save_dismissal":
+            case "check_forced_refresh":
 
-                    $this->emDebug("no notif payload from refreshNotifications()?", $project_or_system);
-                    $return_o               = $all_notifications;
-                    $return_o["success"]    = true;
-                } catch (\Exception $e) {
-                    //Entities::createException($e->getMessage());
-                    $return_o               = array('status' => 'error', 'message' => $e->getMessage());
-                    $return_o["success"]    = false;
-                }
+                // CHECK
+                // IS QUEUE AVAILABLE?
+                // x IS JOB ALREADY IN QUEUE?
 
-                break;
+                // YES
+                // x DOES IT HAVE FINISHED PROCESSED PAYLOAD?
+                // x Yes, RETURN PAYLOAD, DELETE FROM QUEUE
+                // No, UPDATE PARAMETERS (IN CASE MORE DISMISALLS HAPPENED SINCE LAST TIME) RETURN EMPTY PAYLOAD
 
-            case "dismiss":
-                /**
-                 * This is the callback page from js when notifications are dismissed.  This page will accept the dismissed
-                 * notification and store it in the REDCap project which holds dismissed notifications.
-                 */
+                // NO
+                // x APPEND TO QUEUE and return empty payload
 
-                $dismiss_notifs = $payload['dismiss_notifs'];
+                if( $jobQueue   = ProcessQueue::getJobQueue($this) ){
+                    $job_id     = session_id() . "_" . $action;
+                    $json_str   = $jobQueue->getValue($job_id);
+                    $result     = array();
 
-                $new_timestamp  = new DateTime();
-                $now            = $new_timestamp->format('Y-m-d H:i:s');
+                    if(empty($json_str)){
+                        //NOT IN QUEUE SO ADD IT AND SAVE IT AND RETURN EMPTY ARRAY with property indicating in QUEUE
+                        $payload = $payload ?? [];
+                        $jobQueue->setValue($job_id, json_encode($payload));
+                        $jobQueue->save();
+                    }else{
+                        $json   = json_decode($json_str, 1);
 
-                $dismissalPid   = $this->getSystemProjectIDs('dismissal-pid');
-                if(count($dismiss_notifs)){
-                    $data       = array();
-                    $return_ids = array();
-                    foreach($dismiss_notifs as $notif){
-                        $newRecordId = REDCap::reserveNewRecordId($dismissalPid);
-                        $data[] = array(
-                            "record_id"                 => $newRecordId,
-                            "note_record_id"            => $notif["record_id"],
-                            "note_name"                 => $notif['note_name'],
-                            "note_username"             => $notif['note_username'],
-                            "note_dismissal_datetime"   => $now
-                        );
-                        $return_ids[] = $notif["record_id"];
+                        //FOUND IN QUEUE, LETS SEE IF IT HAS RESULTS YET? IF SO RETURN THOSE
+                        if(array_key_exists("results", $json)){
+                            $result = $json["results"];
+
+                            $this->emDebug("ok got the jobresult now return it and delete it from queue?");
+
+                            //AND DELETE THE JOB ID ONLY NOT THE ENTIRE QUEUE (do this by setting value to Null)
+                            //MAYBE DO A MASs DELETE CRON RATHER THAN ... ATOMIC DELETE? yeah use clearJobQueue();
+                            //$jobQueue->setValue($job_id, null);
+                            //$jobQueue->save();
+                        }
                     }
 
-                    $results = REDCap::saveData($dismissalPid, 'json', json_encode($data));
-                    $this->emDebug("need to return the dismissed record_ids", $return_ids);
-                    $this->emDebug("Save Return results: " . json_encode($results) . " for notification: " . json_encode($dismissData));
-
-                    $return_o               = $return_ids;
-                }else{
-                    $this->emError("Cannot save dismissed notification because record set was empty or there was invalid data");
-                    $return_o = ["success" => false];
-                }
-
-                break;
-
-            case "force_refresh":
-                //THEN we poll every 30 seconds? check the flag against and notif against current payload notifs?
-                //then force a refresh if the one in EM is > than the update stamp in the payload?
-
-                try {
-                    $return_o               = $this->getForceRefreshSetting();
+                    $return_o               = $result;
                     $return_o["success"]    = true;
-                } catch (\Exception $e) {
-                    $return_o               = array('status' => 'error', 'message' => $e->getMessage());
-                    $return_o["success"]    = false;
                 }
                 break;
 
             default:
                 $this->emError("Invalid Action");
-                $return_o = ["success" => false];
                 break;
         }
 
         // Return is left as php object, is converted automatically
         return $return_o;
+    }
+
+
+    /**
+     * this cron will process Refresh Requests for Notifications Payloads by User
+     * @return void
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     */
+    public function processJobQueue() {
+        //GET THE JOB QUEUE AND ALL THE UN PROCESSED JOBS AND DO ALL OF THEM AND STUFF THEM IN $processed_job array
+        $current_queue  = ProcessQueue::getUnProcessedJobs($this);
+        $processed_job  = array();
+        foreach($current_queue as $job_id => $json_string) {
+            [$session_id, $action]  = explode('_', $job_id, 2);
+            $payload                = json_decode($json_string,1);
+
+            if(isset($payload["results"]) || empty($payload["user"]) || empty($action)){
+               continue;
+            }
+
+            $user_name = $payload["user"];
+
+            // LOOP THROUGH THE QUEUE AND PROCESS BASED ON ACTION AND SAVED $payload
+            // ONCE OUTPUT IS GATHERERED SAVE IT BACK INTO THE QUEUE UNDER
+            // SAVE THE QUEUE BACK INTO THE LOG TABLE
+            switch ($action) {
+                case "get_full_payload" :
+                    try {
+                        $last_updated_post  = $payload['last_updated'];
+                        $last_updated       = isValid($last_updated_post, 'Y-m-d H:i:s') ? $last_updated_post : null;
+
+                        $proj_or_sys_post   = $payload['proj_or_sys'];
+                        $project_or_system  = $proj_or_sys_post ?? null;
+
+                        $project_id         = $payload["project_id"];
+
+                        $all_notifications  = $this->refreshNotifications($project_id, $user_name, $last_updated, $project_or_system);
+
+                        $payload["results"] = $all_notifications;
+                        $processed_job[$job_id] = $payload;
+
+                    } catch (\Exception $e) {
+                        //Entities::createException($e->getMessage());
+                    }
+
+                    break;
+
+                case "check_forced_refresh" :
+                    try {
+                        $payload["results"]     = $this->getForceRefreshSetting();
+                        $processed_job[$job_id] = $payload;
+                    } catch (\Exception $e) {
+                        //Entities::createException($e->getMessage());
+                    }
+                    break;
+
+                case "save_dismissals" :
+                    $dismiss_notifs = $payload['dismiss_notifs'];
+                    $new_timestamp  = new DateTime();
+                    $now            = $new_timestamp->format('Y-m-d H:i:s');
+
+                    $dismissalPid   = $this->getSystemProjectIDs('dismissal-pid');
+                    if(count($dismiss_notifs)){
+                        $data       = array();
+                        $return_ids = array();
+                        foreach($dismiss_notifs as $notif){
+                            $newRecordId    = REDCap::reserveNewRecordId($dismissalPid);
+                            $data[]         = array(
+                                "record_id"                 => $newRecordId,
+                                "note_record_id"            => $notif["record_id"],
+                                "note_name"                 => $notif['note_name'],
+                                "note_username"             => $notif['note_username'],
+                                "note_dismissal_datetime"   => $now
+                            );
+                            $return_ids[]   = $notif["record_id"];
+                        }
+                        $results    = REDCap::saveData($dismissalPid, 'json', json_encode($data));
+                        $this->emDebug("need to return the dismissed record_ids", $return_ids);
+                        $this->emDebug("Save Return results: " . json_encode($results) . " for notification: " . json_encode($dismissData));
+
+                        $payload["results"]     = $return_ids;
+                        $processed_job[$job_id] = $payload;
+                    }else{
+                        $this->emError("Cannot save dismissed notification because record set was empty or there was invalid data");
+                    }
+                    break;
+            }
+        }
+
+
+        //NOW LOOP THROUGH THAT ARRAY AND SAVE BACK TO THE PARAMETERS  WITH TEH $jobQueue Obje
+        if(!empty($processed_job)){
+            $jobQueue = ProcessQueue::getJobQueue($this);
+            $jobQueue->setValues($processed_job);
+            $jobQueue->save();
+        }
+
+        $this->emDebug("cron jobs processed : ", count($processed_job));
+        return $processed_job;
+    }
+
+    /**
+     * this cron will clear Job Queues every 24 minutes, the average
+     * @return void
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     */
+    public function clearJobQueue(){
+        $result = false;
+        if( $jobQueue   = ProcessQueue::getJobQueue($this) ){
+            $jobQueue->delete();
+            $result = true;
+        }
+
+        return $result;
     }
 }
 

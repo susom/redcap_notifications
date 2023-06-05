@@ -11,6 +11,8 @@ class NotificationController {
     serverOK = true; //If EM goes offline, flag
     force_refresh = null;
 
+    php_session;
+
     payload = { //Default payload structure
         "server": { "updated": null },
         "client": {
@@ -34,8 +36,10 @@ class NotificationController {
                     parent,
                     project_id,
                     refresh_limit,
-                    snooze_duration
+                    snooze_duration,
+                    php_session
                 }) {
+
 
         this.user = current_user;
         this.parent = parent;
@@ -45,10 +49,13 @@ class NotificationController {
         this.project_id = project_id;
         this.dev_prod_status = dev_prod_status;
         this.redcap_notif_storage_key = `redcapNotifications_${this.user}`;
+        this.php_session = php_session;
     }
 
     //Function called once to begin setInterval upon page load
     initialize() {
+        console.log("current session", this.php_session);
+
         //load and parse notifs
         this.loadNotifications();
 
@@ -67,8 +74,9 @@ class NotificationController {
     }
 
     loadNotifications() {
-        if (localStorage.getItem(this.redcap_notif_storage_key))
+        if (localStorage.getItem(this.redcap_notif_storage_key)) {
             this.payload = JSON.parse(localStorage.getItem(this.redcap_notif_storage_key))
+        }
 
         if (this.isStale()) {
             var _this = this;
@@ -76,12 +84,13 @@ class NotificationController {
                 // SUCCESFUL, parse Notifs and store in this.notif
                 var response = decode_object(data);
                 if (response) {
-                    console.log("Refresh from server promise returned", response);
+                    console.log("Refresh from server promise resolved", response);
                     _this.parseNotifications(response);
                 }
             }).catch(function (err) {
-                console.log('Load notifs failure...')
-                console.log(err)
+                console.log("why is it getting rejected? uncomment once figure out why");
+                // _this.setEndpointFalse(err);
+
                 // Run this when promise was rejected via reject()
                 // _this.parent.Log("Error loading or parsing notifs, do nothing they just wont see the notifs this time");
             });
@@ -103,7 +112,7 @@ class NotificationController {
             hours_since_last_updated = getDifferenceInHours(new Date(this.getOffsetTime(this.payload.server.updated)), Date.now());
             if (hours_since_last_updated < this.refresh_limit) {
                 if (this.getEndpointStatus()) { //Ensure the endpoint is not offline
-                    this.parent.Log("Constant refresh Ajax could it be cause of offset time?", { "hours_since_last_updated": hours_since_last_updated, "date_now": Date.now(), "offset_time": new Date(this.getOffsetTime(this.payload.server.updated)) })
+                    // this.parent.Log("Constant refresh Ajax could it be cause of offset time?", { "hours_since_last_updated": hours_since_last_updated, "date_now": Date.now(), "offset_time": new Date(this.getOffsetTime(this.payload.server.updated)) })
                 }
                 return false;
             }
@@ -113,20 +122,33 @@ class NotificationController {
     }
 
     refreshFromServer(notif_type) {
-        var _this = this;
-        var data = {
+        var _this   = this;
+        var data    = {
             "last_updated": _this.force_refresh ? null : _this.getLastUpdate(),
             "project_id": _this.project_id,
-            "proj_or_sys": notif_type ?? "both"
+            "proj_or_sys": notif_type ?? "both",
+            "user" : _this.user
         };
 
-        if (this.getEndpointStatus()) {
-            return new Promise(function (resolve, reject) {
-                _this.parent.callAjax("refresh", data, resolve, function (err) {
-                    console.log("refreshFromServer AJAX FAIL")
-                    _this.setEndpointFalse(err);
-                });
+        function recursiveCall(resolve, reject) {
+            _this.parent.callAjax("get_full_payload", data, function(result){
+                // If the result indicates the request is queued (sucess with no payload), then temporarily set a timeout for 90 seconds to call itself again.
+                if( !result.hasOwnProperty("notifs") ) {
+                    console.log("it is in_queue, call ajax again in 90 sec");
+                    setTimeout(function(){
+                        recursiveCall(resolve, reject); // Recursively call the same AJAX call again.
+                    }, 90000);
+                } else {
+                    console.log("finally got results, stop recurssing", result);
+                    resolve(result); // Otherwise, if the AJAX call was successful, resolve the promise.
+                }
+            }, function (err) {
+                reject(err); // If the AJAX call fails, reject the promise.
             });
+        }
+
+        if (this.getEndpointStatus()) {
+            return new Promise(recursiveCall);
         }
     }
 
@@ -167,10 +189,12 @@ class NotificationController {
     //Function that checks which notifications have been altered & Flag set on the server (to update UI & determine what content to pull)
     getForceRefresh() {
         var _this = this;
-        var data = {};
+        var data = {
+            "user" : _this.user
+        };
 
         if (this.getEndpointStatus()) {
-            _this.parent.callAjax("force_refresh", data, function (result) {
+            _this.parent.callAjax("check_forced_refresh", data, function (result) {
                 if (result) {
                     var forced_refresh_list = decode_object(result);
                     var force_record_ids = Object.keys(forced_refresh_list);
@@ -422,10 +446,11 @@ class NotificationController {
 
             var _this = this;
             var data = {
-                "dismiss_notifs": this.payload.client.dismissed
+                "dismiss_notifs": this.payload.client.dismissed,
+                "user" : _this.user
             }
 
-            _this.parent.callAjax("dismiss", data, function (result) {
+            _this.parent.callAjax("save_dismissals", data, function (result) {
                 if (result) {
                     // _this.parent.Log("dismissNotif Sucess", {});
                     _this.resolveDismissed(result);
