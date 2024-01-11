@@ -531,7 +531,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     public function injectREDCapNotifs(){
         global $Proj;
 
-        $notifs_jsmo        = $this->getUrl("assets/scripts/jsmo.js", true);
+        $jsmo               = $this->getUrl("assets/scripts/jsmo.js", true);
         $utility_js         = $this->getUrl("assets/scripts/utility.js", true);
 
         $notif_cls          = $this->getUrl("assets/scripts/Notification.js", true);
@@ -559,7 +559,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         <script src="<?= $notif_controller ?>" type="text/javascript"></script>
         <script src="<?= $utility_js ?>" type="text/javascript"></script>
         <script src="<?= $notif_cls?>" type="text/javascript"></script>
-        <script src="<?= $notifs_jsmo?>" type="text/javascript"></script>
+        <script src="<?= $jsmo?>" type="text/javascript"></script>
         <link rel="stylesheet" href="<?= $notif_css ?>">
         <script>
             $(function() {

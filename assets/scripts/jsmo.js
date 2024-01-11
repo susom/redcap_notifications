@@ -30,6 +30,12 @@
             });
         },
 
+        callAjax2: function (action, payload) {
+          return module.ajax(action, payload)
+              .then(res => res)
+              .catch(err => err)
+        },
+
         Log: function(subject, msg_o){
             module.log(subject, msg_o).then(function(logId) {
                 // console.log("message logged", logId, subject, msg_o);
