@@ -3,7 +3,7 @@ namespace Stanford\RedcapNotifications;
 
 require_once "emLoggerTrait.php";
 require_once "classes/ProcessQueue.php";
-
+require_once "vendor/autoload.php";
 use Composer\XdebugHandler\Process;
 use REDCap;
 use Exception;

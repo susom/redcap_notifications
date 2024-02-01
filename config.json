@@ -31,11 +31,11 @@
 
 	"links": {
 		"project": [
-            
+
 		],
 		"control-center": [
             {
-                "name": "Test Notification Page",
+                "name": "Test Page",
                 "icon": "pencil",
                 "url": "pages/TestPage.php",
                 "show-header-and-footer": true
