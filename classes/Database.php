@@ -20,8 +20,19 @@ class Database implements CacheInterface
         // TODO: Implement deleteKey() method.
     }
 
+    public function getKeys(array $arr)
+    {
+        // TODO: Implement getKeys() method.
+    }
+
+    public function setKeys(array $arr)
+    {
+        //TODO Implement setKeys() method.
+    }
+
     public function expireKey($key)
     {
         // TODO: Implement expireKey() method.
     }
+
 }
