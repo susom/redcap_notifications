@@ -2,11 +2,14 @@
 
 namespace Stanford\RedcapNotifications;
 
+use Predis\Client;
+
 class Redis implements CacheInterface
 {
 
+    private Client $client;
 
-    public function __construct()
+    public function __construct($redisHost, $redisPort)
     {
         // TODO: Get Predis client here.
     }

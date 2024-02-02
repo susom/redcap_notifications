@@ -1,13 +1,13 @@
 <?php
 namespace Stanford\RedcapNotifications;
-
+require_once "vendor/autoload.php";
 require_once "emLoggerTrait.php";
 require_once "classes/ProcessQueue.php";
 require_once "classes/CacheInterface.php";
 require_once "classes/Redis.php";
 require_once "classes/Database.php";
 require_once "classes/CacheFactory.php";
-require_once "vendor/autoload.php";
+
 use Composer\XdebugHandler\Process;
 use REDCap;
 use Exception;
