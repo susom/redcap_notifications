@@ -5,11 +5,11 @@
 
 try {
 //    Create new client
-    $redis = new \Predis\Client([
-        'host' => 'redis'
-    ]);
-    $value = $redis->get('test');
-    echo $value;
+    $factory = new \Stanford\RedcapNotifications\CacheFactory();
+    $client = $factory->getCacheClient('REDIS', 'redis', '6379');
+
+    echo $client->getKey('test');
+
 } catch (Exception $e) {
     echo "Exception : $e";
 }
