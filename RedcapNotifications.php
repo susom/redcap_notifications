@@ -23,6 +23,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     const DEFAULT_NOTIF_REFRESH_TIME_HOUR   = 6;
     private $SURVEY_USER                    = '[survey respondent]';
 
+    private $cacheClient;
 //    public function __construct() {
 //		parent::__construct();
 //	}
@@ -838,6 +839,24 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         }
 
         return $result;
+    }
+
+    public static function generateKey($notificationId, $system = false,$allProjects = false, $pid = null, $userRole = null, $isDesignatedContact = false ){
+        if($system){
+            return 'SYSTEM_' . $notificationId;
+        }
+        elseif($allProjects){
+            return 'ALL_PROJECTS_' . $notificationId;
+        }
+        elseif($pid){
+            if($userRole){
+                return $pid . '_ROLE_'.$userRole.'_' . $notificationId;
+            }elseif($isDesignatedContact){
+                return $pid . '_DESIGNATED_CONTACT_' . $notificationId;
+            }
+            return $pid . '_' . $notificationId;
+        }
+        throw new \Exception("Cant generate Cache Key for $notificationId");
     }
 }
 
