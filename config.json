@@ -152,6 +152,12 @@
             "name": "<b>Comma separated List of UserIDs to trigger custom debugs</b><i></i> We are tryign to figure out why a subset of userids are triggering callbacks every 30 seconds instead of honoring the 6 hour grace time",
             "required": false,
             "type": "note"
+        },
+        {
+            "key": "notification-api",
+            "name": "External Module Prefix for Notification API EM. ",
+            "required": true,
+            "type": "text"
         }
     ],
     "crons": [

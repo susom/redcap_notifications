@@ -23,7 +23,10 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
     const DEFAULT_NOTIF_REFRESH_TIME_HOUR   = 6;
     private $SURVEY_USER                    = '[survey respondent]';
 
-    private $cacheClient;
+    /**
+     * @var \Stanford\RedcapNotificationsAPI\RedcapNotificationsAPI
+     */
+    private $APIObject;
 //    public function __construct() {
 //		parent::__construct();
 //	}
@@ -42,43 +45,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
      * @param $repeat_instance
      * @return void
      */
-    function redcap_save_record($project_id, $record, $instrument, $event_id, $group_id,
-                                $survey_hash, $response_id, $repeat_instance)
-    {
-        // If this is the notification project, update the latest update date
-        $notification_pid = $this->getSystemProjectIDs('notification-pid');
-        if ($notification_pid == $project_id and !empty($record)) {
-
-            $last_update_ts = (new DateTime())->format('Y-m-d H:i:s');
-
-            $params = array(
-                "records" => $record,
-                "return_format" => "json",
-                "fields" => array("force_refresh")
-            );
-            $json       = REDCap::getData($params);
-            $response   = json_decode($json,true);
-
-            if(!empty($response) && $response = current($response)){
-                $this->emDebug("forcer refresh get data?", $response);
-                if($response["force_refresh___1"] == "1"){
-                    $this->setForceRefreshSetting($record, $last_update_ts);
-                }
-            }
-
-            // Save the last record update date/time
-            $saveData = array(
-                array(
-                    "record_id" => $record,
-                    "note_last_update_time" => $last_update_ts
-                )
-            );
-            $response = REDCap::saveData('json', json_encode($saveData), 'overwrite');
-            if (!empty($response['errors'])) {
-                $this->emError("Could not update record with last update time " . json_encode($saveData));
-            }
-        }
-    }
 
     /**
      * Call client to inject banners or modal notifications
@@ -741,21 +707,15 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
             switch ($action) {
                 case "get_full_payload" :
                     try {
-                        $last_updated_post  = $payload['last_updated'];
-                        $last_updated       = isValid($last_updated_post, 'Y-m-d H:i:s') ? $last_updated_post : null;
-
-                        $proj_or_sys_post   = $payload['proj_or_sys'];
-                        $project_or_system  = $proj_or_sys_post ?? null;
-
-                        $project_id         = $payload["project_id"];
-
-                        $all_notifications  = $this->refreshNotifications($project_id, $user_name, $last_updated, $project_or_system);
-
-                        $payload["results"] = $all_notifications;
-                        $processed_job[$job_id] = $payload;
-
+                        $apiObject = $this->getAPIObject();
+                        if($apiObject){
+                            $apiObject->getNotifications();
+                        }else{
+                            throw new \Exception("No notifications");
+                        }
                     } catch (\Exception $e) {
                         //Entities::createException($e->getMessage());
+                        return [];
                     }
 
                     break;
@@ -841,23 +801,30 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
         return $result;
     }
 
-    public static function generateKey($notificationId, $system = false,$allProjects = false, $pid = null, $userRole = null, $isDesignatedContact = false ){
-        if($system){
-            return 'SYSTEM_' . $notificationId;
+    /**
+     * @return \Stanford\RedcapNotificationsAPI\RedcapNotificationsAPI
+     */
+    public function getAPIObject(): \Stanford\RedcapNotificationsAPI\RedcapNotificationsAPI
+    {
+        // check Notification EM is enabled first.
+        if(!$this->APIObject AND $this->framework->isModuleEnabled($this->getSystemSetting('notification-api'))){
+            $this->setAPIObject(\ExternalModules\ExternalModules::getModuleInstance($this->getSystemSetting('notification-api')));
+        }else{
+            REDCap::logEvent('REDCap Notification EM is not Enabled.');
         }
-        elseif($allProjects){
-            return 'ALL_PROJECTS_' . $notificationId;
-        }
-        elseif($pid){
-            if($userRole){
-                return $pid . '_ROLE_'.$userRole.'_' . $notificationId;
-            }elseif($isDesignatedContact){
-                return $pid . '_DESIGNATED_CONTACT_' . $notificationId;
-            }
-            return $pid . '_' . $notificationId;
-        }
-        throw new \Exception("Cant generate Cache Key for $notificationId");
+        return $this->APIObject;
     }
+
+    /**
+     * @param \Stanford\RedcapNotificationsAPI\RedcapNotificationsAPI $APIObject
+     */
+    public function setAPIObject(\Stanford\RedcapNotificationsAPI\RedcapNotificationsAPI $APIObject): void
+    {
+        $this->APIObject = $APIObject;
+    }
+
+
+
 }
 
 function isValid($date, $format = 'Y-m-d'){
