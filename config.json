@@ -28,20 +28,6 @@
     "enable-every-page-hooks-on-system-pages": true,
     "links": {
         "project": [
-        ],
-        "control-center": [
-            {
-                "name": "Test Page",
-                "icon": "pencil",
-                "url": "pages/TestPage.php",
-                "show-header-and-footer": true
-            },
-            {
-                "name": "DemoNote",
-                "icon": "pencil",
-                "url": "pages/DemoNote.php",
-                "show-header-and-footer": true
-            }
         ]
     },
     "enable-ajax-logging": true,
