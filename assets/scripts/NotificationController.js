@@ -54,8 +54,6 @@ class NotificationController {
 
     //Function called once to begin setInterval upon page load
     initialize() {
-        console.log("current session", this.php_session);
-
         //load and parse notifs
         this.loadNotifications();
 
@@ -225,15 +223,6 @@ class NotificationController {
 
     startPolling() {
         this.pollNotifsDisplay();
-        this.pollDismissNotifs();
-        this.pollForceRefresh();
-    }
-
-    pollDismissNotifs() {
-        var _this = this;
-        this.DismissIntervalID = setInterval(function () {
-            _this.dismissNotifs()
-        }, this.default_polling_int);
     }
 
     pollNotifsDisplay() {
@@ -243,18 +232,6 @@ class NotificationController {
                 _this.loadNotifications();
             } else if (_this.payload.server.updated) {
                 _this.showNotifications();
-            }
-        }, this.default_polling_int);
-    }
-
-    pollForceRefresh() {
-        var _this = this;
-        this.forceRefreshIntervalID = setInterval(function () {
-            var payload_last_update = _this.getLastUpdate();
-
-            if (payload_last_update) {
-                console.log("has last updaet so check get force refresh?", payload_last_update);
-                _this.getForceRefresh();
             }
         }, this.default_polling_int);
     }
@@ -422,7 +399,13 @@ class NotificationController {
                 let notif_type = notif.getType();
                 let notif_cont = notif.getTarget() == "survey" ? ".notif_cont_project" : ".notif_cont_" + notif.getTarget();
 
-                html_cont[notif_type].find(notif_cont).append(notif.getJQUnit());
+                let jqunit = notif.getJQUnit();
+
+                jqunit.find(".dismissbtn").on("click", function(){
+                    notif.dismissNotif();
+                });
+
+                html_cont[notif_type].find(notif_cont).append(jqunit);
             }
         }
 
@@ -595,7 +578,6 @@ class NotificationController {
                 </div>
             </div>`);
     }
-
 
     getBannerContainerUI() {
         return (

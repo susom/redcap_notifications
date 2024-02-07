@@ -555,6 +555,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 
         //Initialize JSMO
         $this->initializeJavascriptModuleObject();
+        $this->processJobQueue();
         ?>
         <script src="<?= $notif_controller ?>" type="text/javascript"></script>
         <script src="<?= $utility_js ?>" type="text/javascript"></script>
@@ -636,17 +637,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 
     /* AJAX HANDLING IN HERE INSTEAD OF A STAND ALONE PAGE? */
     public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id) {
-//        $this->emDebug(func_get_args());
-//        $this->emDebug("is redcap_module_ajax a reserved name?",
-//            $action,
-//            $payload,
-//            $project_id,
-//            $page,
-//            $page_full,
-//            $user_id
-//        );
-//        $this->emDebugForCustomUseridList($action,$payload,$project_id,$page_full);
-
         $return_o = ["success" => false];
 
         //NO LONGER SEPARATE ACTIONS, THEY ALL FLOW THROUGH QUEUE
@@ -655,19 +645,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
             case "get_full_payload":
             case "save_dismissals":
             case "check_forced_refresh":
-
-                // CHECK
-                // IS QUEUE AVAILABLE?
-                // x IS JOB ALREADY IN QUEUE?
-
-                // YES
-                // x DOES IT HAVE FINISHED PROCESSED PAYLOAD?
-                // x Yes, RETURN PAYLOAD, DELETE FROM QUEUE
-                // No, UPDATE PARAMETERS (IN CASE MORE DISMISALLS HAPPENED SINCE LAST TIME) RETURN EMPTY PAYLOAD
-
-                // NO
-                // x APPEND TO QUEUE and return empty payload
-
                 if( $jobQueue   = ProcessQueue::getJobQueue($this) ){
                     $job_id     = session_id() . "_" . $action;
                     $json_str   = $jobQueue->getValue($job_id);
@@ -819,21 +796,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule {
 
         $this->emDebug("cron jobs processed : ", count($processed_job));
         return $processed_job;
-    }
-
-    /**
-     * this cron will clear Job Queues every 24 minutes, the average
-     * @return void
-     * @throws \GuzzleHttp\Exception\GuzzleException
-     */
-    public function clearJobQueue(){
-        $result = false;
-        if( $jobQueue   = ProcessQueue::getJobQueue($this) ){
-            $jobQueue->delete();
-            $result = true;
-        }
-
-        return $result;
     }
 }
 
