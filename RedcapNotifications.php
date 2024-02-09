@@ -808,7 +808,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
     /**
      * @return \Stanford\RedcapNotificationsAPI\RedcapNotificationsAPI
      */
-    public function getAPIObject(): \Stanford\RedcapNotificationsAPI\RedcapNotificationsAPI
+    public function getAPIObject()
     {
         // check Notification EM is enabled first.
         if (!$this->APIObject and $this->framework->isModuleEnabled($this->getSystemSetting('notification-api'))) {
