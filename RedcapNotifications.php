@@ -1,4 +1,5 @@
 <?php
+
 namespace Stanford\RedcapNotifications;
 require_once "vendor/autoload.php";
 require_once "emLoggerTrait.php";
@@ -568,38 +569,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
         return $user;
     }
 
-    /**
-     * Get The force Refresh json from system setting
-     *
-     * @param
-     * @return array
-     */
-    public function getForceRefreshSetting()
-    {
-        $existing_json = $this->getSystemSetting("force_refresh_ts");
-        $existing_arr = empty($existing_json) ? array() : json_decode($existing_json, true);
-
-        return $existing_arr;
-    }
-
-    /**
-     * Set a new notif record id with timestamp to force refresh
-     *
-     * @param $record , $last_ts
-     * @return void
-     */
-    public function setForceRefreshSetting($record, $last_ts)
-    {
-        $existing_arr = $this->getForceRefreshSetting();
-
-        if (!array_key_exists($record, $existing_arr)) {
-            $existing_arr[$record] = null;
-        }
-
-        $existing_arr[$record] = $last_ts;
-        $this->setSystemSetting("force_refresh_ts", json_encode($existing_arr));
-    }
-
 
     /**
      * display emdebugs only for custom comma delimited list of userids to debug for select subset of userids to try to find out why they constantly callback for notif payloads
@@ -641,8 +610,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
         //REMOVE THIS SWITCH WHEN WORKFLOW FINALIZED
         switch ($action) {
             case "get_full_payload":
-            case "save_dismissals":
-            case "check_forced_refresh":
+
+           // case "check_forced_refresh":
 
                 // CHECK
                 // IS QUEUE AVAILABLE?
@@ -660,12 +629,12 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
                     $project_id = null;
                     $admin_rights = null;
                     $project_status = null;
-                    if(defined('PROJECT_ID')){
+                    if (defined('PROJECT_ID')) {
                         $project_id = PROJECT_ID;
                         global $Proj;
                         $project_status = $Proj->project['status'];
                     }
-                    if(defined('ADMIN_RIGHTS')){
+                    if (defined('ADMIN_RIGHTS')) {
                         $admin_rights = ADMIN_RIGHTS;
                     }
                     $return_o = $apiObject->getNotifications($project_id, $project_status, $admin_rights);
@@ -673,7 +642,29 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
                     throw new \Exception("No notifications");
                 }
                 break;
+            case "save_dismissals":
+                $dismiss_notifs = $payload['dismiss_notifs'];
+                    if (count($dismiss_notifs)) {
+                        try {
+                            $apiObject = $this->getAPIObject();
+                            if ($apiObject) {
+                                foreach ($dismiss_notifs as $notif) {
+                                    if(!$apiObject->dismissNotification($notif["record_id"])){
+                                        throw new \Exception("Cant dismiss Notification '" .$notif["record_id"]. "'");
+                                    };
+                                    $return_o[] = $notif["record_id"];
+                                }
+                                 $this->emDebug("need to return the dismissed record_ids", $return_o);
 
+                            } else {
+                                throw new \Exception("No notifications");
+                            }
+                        } catch (\Exception $e) {
+                            return $e->getMessage();
+                        };
+                    } else {
+                        $this->emError("Cannot save dismissed notification because record set was empty or there was invalid data");
+                    }
             default:
                 $this->emError("Invalid Action");
                 break;
@@ -683,127 +674,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
         return $return_o;
     }
 
-
-    /**
-     * this cron will process Refresh Requests for Notifications Payloads by User
-     * @return void
-     * @throws \GuzzleHttp\Exception\GuzzleException
-     */
-    public function processJobQueue()
-    {
-        //GET THE JOB QUEUE AND ALL THE UN PROCESSED JOBS AND DO ALL OF THEM AND STUFF THEM IN $processed_job array
-        $current_queue = ProcessQueue::getUnProcessedJobs($this);
-        $processed_job = array();
-        foreach ($current_queue as $job_id => $json_string) {
-            [$session_id, $action] = explode('_', $job_id, 2);
-            $payload = json_decode($json_string, 1);
-
-            if (isset($payload["results"]) || empty($payload["user"]) || empty($action)) {
-                continue;
-            }
-
-            $user_name = $payload["user"];
-
-            // LOOP THROUGH THE QUEUE AND PROCESS BASED ON ACTION AND SAVED $payload
-            // ONCE OUTPUT IS GATHERERED SAVE IT BACK INTO THE QUEUE UNDER
-            // SAVE THE QUEUE BACK INTO THE LOG TABLE
-            switch ($action) {
-                case "get_full_payload" :
-                    try {
-                        $apiObject = $this->getAPIObject();
-                        if ($apiObject) {
-                            $apiObject->getNotifications();
-                        } else {
-                            throw new \Exception("No notifications");
-                        }
-                    } catch (\Exception $e) {
-                        //Entities::createException($e->getMessage());
-                        return [];
-                    }
-
-                    break;
-
-                case "check_forced_refresh" :
-                    try {
-                        $last_updated = new DateTime($payload["last_updated"]);
-                        $force_results = $payload["results"] = $this->getForceRefreshSetting();
-
-                        $dates = array_map(function ($date) {
-                            return new DateTime($date);
-                        }, $force_results);
-
-                        // Get the latest date from the array
-                        $max_date = max($dates);
-
-                        //Only include if any force is newer than the last updated
-                        if ($max_date > $last_updated) {
-                            $processed_job[$job_id] = $payload;
-                        }
-                    } catch (\Exception $e) {
-                        //Entities::createException($e->getMessage());
-                    }
-                    break;
-
-                case "save_dismissals" :
-                    $dismiss_notifs = $payload['dismiss_notifs'];
-                    $new_timestamp = new DateTime();
-                    $now = $new_timestamp->format('Y-m-d H:i:s');
-
-                    $dismissalPid = $this->getSystemProjectIDs('dismissal-pid');
-                    if (count($dismiss_notifs)) {
-                        $data = array();
-                        $return_ids = array();
-                        foreach ($dismiss_notifs as $notif) {
-                            $newRecordId = REDCap::reserveNewRecordId($dismissalPid);
-                            $data[] = array(
-                                "record_id" => $newRecordId,
-                                "note_record_id" => $notif["record_id"],
-                                "note_name" => $notif['note_name'],
-                                "note_username" => $notif['note_username'],
-                                "note_dismissal_datetime" => $now
-                            );
-                            $return_ids[] = $notif["record_id"];
-                        }
-                        $results = REDCap::saveData($dismissalPid, 'json', json_encode($data));
-                        $this->emDebug("need to return the dismissed record_ids", $return_ids);
-                        $this->emDebug("Save Return results: " . json_encode($results) . " for notification: " . json_encode($dismissData));
-
-                        $payload["results"] = $return_ids;
-                        $processed_job[$job_id] = $payload;
-                    } else {
-                        $this->emError("Cannot save dismissed notification because record set was empty or there was invalid data");
-                    }
-                    break;
-            }
-        }
-
-
-        //NOW LOOP THROUGH THAT ARRAY AND SAVE BACK TO THE PARAMETERS  WITH TEH $jobQueue Obje
-        if (!empty($processed_job)) {
-            $jobQueue = ProcessQueue::getJobQueue($this);
-            $jobQueue->setValues($processed_job);
-            $jobQueue->save();
-        }
-
-        $this->emDebug("cron jobs processed : ", count($processed_job));
-        return $processed_job;
-    }
-
-    /**
-     * this cron will clear Job Queues every 24 minutes, the average
-     * @return void
-     * @throws \GuzzleHttp\Exception\GuzzleException
-     */
-    public function clearJobQueue()
-    {
-        $result = false;
-        if ($jobQueue = ProcessQueue::getJobQueue($this)) {
-            $jobQueue->delete();
-            $result = true;
-        }
-
-        return $result;
-    }
 
     /**
      * @return \Stanford\RedcapNotificationsAPI\RedcapNotificationsAPI
