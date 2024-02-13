@@ -94,15 +94,7 @@ class Notification {
     dismissNotif(){
         this.setDismissed();
 
-        let data = {
-            "record_id": this.notif.record_id,
-            "note_name": this.notif.note_name,
-            "note_username": this.parent.user
-        };
-        //TODO
-        console.log("need to build a new parameter to ajax to", data);
-
-        this.parent.dismissNotif(data);
+        this.parent.dismissNotif(this.notif.key);
 
         this.domjq.fadeOut("fast", function(){
             $(this).remove();

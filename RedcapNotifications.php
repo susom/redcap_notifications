@@ -538,7 +538,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
 
         //Initialize JSMO
         $this->initializeJavascriptModuleObject();
-        $this->emLog("injecting the inistal notifs_config", $notifs_config);
+//        $this->processJobQueue();
         ?>
         <script src="<?= $notif_controller ?>" type="text/javascript"></script>
         <script src="<?= $utility_js ?>" type="text/javascript"></script>
@@ -591,25 +591,27 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
 
 
     /* AJAX HANDLING IN HERE INSTEAD OF A STAND ALONE PAGE? */
-    public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id)
-    {
-//        $this->emDebug(func_get_args());
-//        $this->emDebug("is redcap_module_ajax a reserved name?",
-//            $action,
-//            $payload,
-//            $project_id,
-//            $page,
-//            $page_full,
-//            $user_id
-//        );
-//        $this->emDebugForCustomUseridList($action,$payload,$project_id,$page_full);
-
+    public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id) {
         $return_o = ["success" => false];
 
         //NO LONGER SEPARATE ACTIONS, THEY ALL FLOW THROUGH QUEUE
         //REMOVE THIS SWITCH WHEN WORKFLOW FINALIZED
         switch ($action) {
             case "get_full_payload":
+
+           // case "check_forced_refresh":
+
+                // CHECK
+                // IS QUEUE AVAILABLE?
+                // x IS JOB ALREADY IN QUEUE?
+
+                // YES
+                // x DOES IT HAVE FINISHED PROCESSED PAYLOAD?
+                // x Yes, RETURN PAYLOAD, DELETE FROM QUEUE
+                // No, UPDATE PARAMETERS (IN CASE MORE DISMISALLS HAPPENED SINCE LAST TIME) RETURN EMPTY PAYLOAD
+
+                // NO
+                // x APPEND TO QUEUE and return empty payload
                 $apiObject = $this->getAPIObject();
                 if ($apiObject) {
                     $project_id = null;
@@ -660,6 +662,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
         return $return_o;
     }
 
+
     /**
      * @return \Stanford\RedcapNotificationsAPI\RedcapNotificationsAPI
      */
@@ -681,6 +684,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
     {
         $this->APIObject = $APIObject;
     }
+
+
 }
 
 function isValid($date, $format = 'Y-m-d')
