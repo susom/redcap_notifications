@@ -57,41 +57,6 @@
             "type": "descriptive"
         },
         {
-            "key": "notification-cache",
-            "name": "Where do you want to cache notifications? (Default: Database)",
-            "type": "dropdown",
-            "choices": [
-                {
-                    "name": "Database",
-                    "value": "database"
-                },
-                {
-                    "name": "Redis",
-                    "value": "redis"
-                }
-            ]
-        },
-        {
-            "key": "redis-host",
-            "name": "Redis Host",
-            "required": true,
-            "type": "text",
-            "branchingLogic": {
-                "field": "notification-cache",
-                "value": "redis"
-            }
-        },
-        {
-            "key": "redis-port",
-            "name": "Redis Port",
-            "required": true,
-            "type": "text",
-            "branchingLogic": {
-                "field": "notification-cache",
-                "value": "redis"
-            }
-        },
-        {
             "key": "instructions",
             "name": "<b>For First time setup</b><p>Please check the boxes above to enable this EM on all projects by default and to hide this EM from all non-admins</i></div>",
             "type": "descriptive"
