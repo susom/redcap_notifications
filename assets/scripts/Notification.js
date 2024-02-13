@@ -92,10 +92,11 @@ class Notification {
     }
 
     dismissNotif(){
-        this.setDismissed();
-
+        //CALL PARENT FUNCTION TO SEND TO SERVER
         this.parent.dismissNotif(this.notif.key);
 
+        //UPDATE UI
+        this.setDismissed();
         this.domjq.fadeOut("fast", function(){
             $(this).remove();
         });

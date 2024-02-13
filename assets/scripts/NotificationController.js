@@ -64,11 +64,6 @@ class NotificationController {
             //first time just call it , then interval 30 seconds there after
             this.showNotifications();
         }
-        if (this.payload.client.dismissed.length) {
-            //first time just call it , then interval 30 seconds there after
-            console.log("used to call this.dismissNotifs()");
-            // this.dismissNotifs();
-        }
 
         this.pollNotifsDisplay();
     }
@@ -197,52 +192,10 @@ class NotificationController {
         this.showNotifications();
     }
 
-    //Function that checks which notifications have been altered & Flag set on the server (to update UI & determine what content to pull)
-    getForceRefresh() {
-        var _this = this;
-        var data = {
-            "user" : _this.user,
-            "last_updated" : _this.getLastUpdate()
-        };
-
-        if (this.getEndpointStatus()) {
-            _this.parent.callAjax("check_forced_refresh", data, function (response) {
-                var result = response.results;
-                if (result) {
-                    var forced_refresh_list = decode_object(result);
-                    var force_record_ids    = Object.keys(forced_refresh_list);
-
-                    for (var i in _this.notif_objs) {
-                        var notif_o = _this.notif_objs[i];
-                        if ($.inArray(notif_o.getRecordId(), force_record_ids) > -1) {
-                            var check_force = new Date(_this.getLastUpdate()) < new Date(forced_refresh_list[notif_o.getRecordId()]);
-
-                            if (check_force) {
-                                //one match is enough to refresh entire payload
-                                _this.force_refresh = true;
-                                // _this.parent.Log("Notif " + notif_o.getRecordId() + " needs force refresh at " + forced_refresh_list[notif_o.getRecordId()], {});
-                                console.log('getForceRefresh')
-                                _this.loadNotifications();
-                                break;
-                            }
-                        }
-                    }
-                }
-            }, function (err) {
-                _this.setEndpointFalse(err);
-            });
-        }
-    }
-
-    startPolling() {
-        this.pollNotifsDisplay();
-    }
-
     pollNotifsDisplay() {
         let _this = this;
         this.notifDisplayIntervalID = setInterval(function () {
             if (_this.isStale()) {
-                console.log('loadNotifications in pollNotifsDisplay')
                 _this.loadNotifications();
             } else if (_this.payload.server.updated) {
                 _this.showNotifications();
@@ -434,43 +387,25 @@ class NotificationController {
         }
     }
 
-    dismissNotif(data) {
-        this.payload.client.dismissed.push(data);
-        // localStorage.setItem(this.redcap_notif_storage_key, JSON.stringify(this.payload));
+    dismissNotif(notif_key) {
+        //THIS MAY NOT BE NECESSARY ANYMORE
+        this.payload.client.dismissed.push(notif_key);
+        localStorage.setItem(this.redcap_notif_storage_key, JSON.stringify(this.payload));
 
-
-        //TODO, WHAT IF THEY HIT "dismiss all"?
-        this.dismissNotifs();
-    }
-
-    //Remove from future payloads.
-    dismissNotifs() {
-        if (this.payload.client.dismissed.length && this.getEndpointStatus()) {
-            // this.parent.Log("polling dismiss " +  this.payload.client.dismissed.length + " items", {});
-
-            var _this = this;
-            var data = {
-                "dismiss_notifs": this.payload.client.dismissed,
-                "user" : _this.user
+        //PHP CLASS APPEARS TO BE LOOKING FOR AN ARRAY SO WRAPPING IN []
+        var _this = this;
+        _this.parent.callAjax("save_dismissals", [notif_key], function (result) {
+            var result = result.results;
+            if (result.length) {
+                _this.resolveDismissed(result);
             }
-
-            _this.parent.callAjax("save_dismissals", data, function (result) {
-                var result = result.results;
-                if (result.length) {
-                    // _this.parent.Log("dismissNotif Sucess", {});
-                    _this.resolveDismissed(result);
-                }
-            }, function (err) {
-                _this.setEndpointFalse(err);
-            });
-        } else {
-            // this.parent.Log("no notifs to dismiss yet", "misc");
-        }
+        }, function (err) {
+            _this.setEndpointFalse(err);
+        });
     }
 
     resolveDismissed(remove_notifs) {
-        // remove_notifs.find((el) => this.payload.client.dismissed)
-
+        // WILL NEED TO SEE WHAT THE RETURN IS AND ADJUST THIS
         var i = this.payload.client.dismissed.length;
         while (i--) {
             if ($.inArray(this.payload.client.dismissed[i]["record_id"], remove_notifs) > -1) {
