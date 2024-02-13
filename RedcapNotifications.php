@@ -539,7 +539,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
 
         //Initialize JSMO
         $this->initializeJavascriptModuleObject();
-        $this->processJobQueue();
+//        $this->processJobQueue();
         ?>
         <script src="<?= $notif_controller ?>" type="text/javascript"></script>
         <script src="<?= $utility_js ?>" type="text/javascript"></script>

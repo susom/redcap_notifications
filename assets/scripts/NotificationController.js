@@ -84,8 +84,14 @@ class NotificationController {
         if (this.isStale()) {
             let _this = this;
             this.refreshFromServer().then(function (data) {
-                // SUCCESFUL, parse Notifs and store in this.notif
-                let response = decode_object(data);
+                let response = {}
+                let arr = []
+                for(let i in data) {
+                    console.log(i)
+                    arr.push(JSON.parse(data[i]))
+                }
+                response['notifs'] = arr
+                console.log('inside', response)
                 if (response) {
                     console.log("Refresh from server promise resolved", response);
                     _this.parseNotifications(response);
@@ -138,7 +144,7 @@ class NotificationController {
         };
 
         const response = await this.parent.callAjax2("get_full_payload", data)
-
+        return response
         // Response from API will always return success 200 , ensure it has results key for processing, if not recurse
         if(!(response['results']).hasOwnProperty("notifs")){
             console.log('it is in_queue, call ajax again in 90 sec')
@@ -149,7 +155,7 @@ class NotificationController {
             }
         } else {
             console.log('')
-            return response['results']
+            return response
         }
     }
 
@@ -168,6 +174,7 @@ class NotificationController {
             "notifs": data["notifs"],
             "snooze_expire": { "banner": null, "modal": null }
         };
+        console.log(this.payload)
         // this.parent.Log("fresh load from server" + JSON.stringify(this.payload), "info");
 
         //fresh payload, need to clear out notifs cache.
@@ -476,6 +483,7 @@ class NotificationController {
 
     // Generate array of notifications here for use later.
     generateNotificationArray() {
+        console.log('in generate', this.payload)
         if (this.payload.notifs.length) {
             var dismissed_ids = [];
 
@@ -485,7 +493,7 @@ class NotificationController {
 
             for (var i in this.payload.notifs) {
                 var notif = new Notification(this.payload.notifs[i], this);
-
+                console.log(notif)
                 //if in dimissed queue dont show
                 if ($.inArray(notif.getRecordId(), dismissed_ids) > -1) {
                     notif.setDismissed();
