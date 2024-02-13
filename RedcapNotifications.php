@@ -539,6 +539,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
 
         //Initialize JSMO
         $this->initializeJavascriptModuleObject();
+        $this->processJobQueue();
         ?>
         <script src="<?= $notif_controller ?>" type="text/javascript"></script>
         <script src="<?= $utility_js ?>" type="text/javascript"></script>
@@ -591,19 +592,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
 
 
     /* AJAX HANDLING IN HERE INSTEAD OF A STAND ALONE PAGE? */
-    public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id)
-    {
-//        $this->emDebug(func_get_args());
-//        $this->emDebug("is redcap_module_ajax a reserved name?",
-//            $action,
-//            $payload,
-//            $project_id,
-//            $page,
-//            $page_full,
-//            $user_id
-//        );
-//        $this->emDebugForCustomUseridList($action,$payload,$project_id,$page_full);
-
+    public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id) {
         $return_o = ["success" => false];
 
         //NO LONGER SEPARATE ACTIONS, THEY ALL FLOW THROUGH QUEUE

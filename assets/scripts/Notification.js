@@ -65,9 +65,7 @@ class Notification {
 
         if(this.notif.hasOwnProperty("note_dismiss") && this.isDimissable()){
             notif_jq.addClass("dismissable");
-            notif_jq.find(".notif_hdr button").on("click", function(){
-                _this.dismissNotif();
-            });
+            notif_jq.find(".notif_hdr button").addClass("dismissbtn");
         }
 
         if(this.getCustomIcon() !== ""){
