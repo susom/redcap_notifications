@@ -631,13 +631,13 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
                 }
                 break;
             case "save_dismissals":
-                $dismiss_notifs = $payload['dismiss_notifs'];
+                $dismiss_notifs = $payload;
                     if (count($dismiss_notifs)) {
                         try {
                             $apiObject = $this->getAPIObject();
                             if ($apiObject) {
                                 foreach ($dismiss_notifs as $notif) {
-                                    if(!$apiObject->dismissNotification($notif["record_id"])){
+                                    if(!$apiObject->dismissNotification($notif)){
                                         throw new \Exception("Cant dismiss Notification '" .$notif["record_id"]. "'");
                                     };
                                     $return_o[] = $notif["record_id"];
