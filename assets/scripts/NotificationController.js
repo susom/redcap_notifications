@@ -28,6 +28,7 @@ class NotificationController {
     banner_jq = null;
     modal_jq = null;
     notif_objs = [];
+    refreshFromServerRef = null;
 
     constructor({
                     current_user,
@@ -50,6 +51,7 @@ class NotificationController {
         this.dev_prod_status = dev_prod_status;
         this.redcap_notif_storage_key = `redcapNotifications_${this.user}`;
         this.php_session = php_session;
+
     }
 
     //Function called once to begin setInterval upon page load
@@ -60,32 +62,37 @@ class NotificationController {
         //KICK OFF POLL TO SHOW NOTIFS (IF NOT SNOOZED)
         if (this.payload.server.updated) {
             //first time just call it , then interval 30 seconds there after
-            this.getForceRefresh();
             this.showNotifications();
         }
         if (this.payload.client.dismissed.length) {
             //first time just call it , then interval 30 seconds there after
-            this.dismissNotifs();
+            console.log("used to call this.dismissNotifs()");
+            // this.dismissNotifs();
         }
 
-        this.startPolling();
+        this.pollNotifsDisplay();
     }
 
+    /**
+     *
+     */
     loadNotifications() {
         if (localStorage.getItem(this.redcap_notif_storage_key)) {
             this.payload = JSON.parse(localStorage.getItem(this.redcap_notif_storage_key))
         }
 
         if (this.isStale()) {
-            var _this = this;
+            console.log("is stale so pull new from BE");
+            let _this = this;
             this.refreshFromServer().then(function (data) {
                 // SUCCESFUL, parse Notifs and store in this.notif
-                var response = decode_object(data);
+                let response = decode_object(data);
                 if (response) {
                     console.log("Refresh from server promise resolved", response);
                     _this.parseNotifications(response);
                 }
             }).catch(function (err) {
+                console.log(err)
                 console.log("why is it getting rejected? uncomment once figure out why");
                 // _this.setEndpointFalse(err);
 
@@ -95,8 +102,6 @@ class NotificationController {
         } else {
             this.generateNotificationArray();
         }
-
-        return;
     }
 
     isStale() {
@@ -119,35 +124,32 @@ class NotificationController {
         return true;
     }
 
-    refreshFromServer(notif_type) {
-        var _this   = this;
-        var data    = {
-            "last_updated": _this.force_refresh ? null : _this.getLastUpdate(),
-            "project_id": _this.project_id,
+    /**
+     * Hit server endpoint for notification payload
+     * @param notif_type
+     * @returns {Promise<*>}
+     */
+    async refreshFromServer(notif_type) {
+        // let _this   = this;
+        let data    = {
+            "last_updated": this.force_refresh ? null : this.getLastUpdate(),
+            "project_id": this.project_id,
             "proj_or_sys": notif_type ?? "both",
-            "user" : _this.user
+            "user" : this.user
         };
 
-        function recursiveCall(resolve, reject) {
-            _this.parent.callAjax("get_full_payload", data, function(response){
-                // If the result indicates the request is queued (sucess with no payload), then temporarily set a timeout for 90 seconds to call itself again.
-                var result = response["results"];
-                if( !result.hasOwnProperty("notifs") ) {
-                    console.log("it is in_queue, call ajax again in 90 sec");
-                    setTimeout(function(){
-                        recursiveCall(resolve, reject); // Recursively call the same AJAX call again.
-                    }, 90000);
-                } else {
-                    console.log("finally got results, stop recurssing", result);
-                    resolve(result); // Otherwise, if the AJAX call was successful, resolve the promise.
-                }
-            }, function (err) {
-                reject(err); // If the AJAX call fails, reject the promise.
-            });
-        }
+        const response = await this.parent.callAjax2("get_full_payload", data)
 
-        if (this.getEndpointStatus()) {
-            return new Promise(recursiveCall);
+        // Response from API will always return success 200 , ensure it has results key for processing, if not recurse
+        if(!(response['results']).hasOwnProperty("notifs")){
+            console.log('it is in_queue, call ajax again in 90 sec')
+            if(!this.refreshFromServerRef) { // Ensure there is no currently running iteration before recursive call
+                this.refreshFromServerRef = setTimeout(() => {
+                    this.refreshFromServer(notif_type)
+                }, 90000)
+            }
+        } else {
+            return response['results']
         }
     }
 
@@ -185,50 +187,11 @@ class NotificationController {
         this.showNotifications();
     }
 
-    //Function that checks which notifications have been altered & Flag set on the server (to update UI & determine what content to pull)
-    getForceRefresh() {
-        var _this = this;
-        var data = {
-            "user" : _this.user,
-            "last_updated" : _this.getLastUpdate()
-        };
-
-        if (this.getEndpointStatus()) {
-            _this.parent.callAjax("check_forced_refresh", data, function (response) {
-                var result = response.results;
-                if (result) {
-                    var forced_refresh_list = decode_object(result);
-                    var force_record_ids    = Object.keys(forced_refresh_list);
-
-                    for (var i in _this.notif_objs) {
-                        var notif_o = _this.notif_objs[i];
-                        if ($.inArray(notif_o.getRecordId(), force_record_ids) > -1) {
-                            var check_force = new Date(_this.getLastUpdate()) < new Date(forced_refresh_list[notif_o.getRecordId()]);
-
-                            if (check_force) {
-                                //one match is enough to refresh entire payload
-                                _this.force_refresh = true;
-                                // _this.parent.Log("Notif " + notif_o.getRecordId() + " needs force refresh at " + forced_refresh_list[notif_o.getRecordId()], {});
-                                _this.loadNotifications();
-                                break;
-                            }
-                        }
-                    }
-                }
-            }, function (err) {
-                _this.setEndpointFalse(err);
-            });
-        }
-    }
-
-    startPolling() {
-        this.pollNotifsDisplay();
-    }
-
     pollNotifsDisplay() {
-        var _this = this;
+        let _this = this;
         this.notifDisplayIntervalID = setInterval(function () {
             if (_this.isStale()) {
+                console.log('loadNotifications in pollNotifsDisplay')
                 _this.loadNotifications();
             } else if (_this.payload.server.updated) {
                 _this.showNotifications();
@@ -423,6 +386,10 @@ class NotificationController {
     dismissNotif(data) {
         this.payload.client.dismissed.push(data);
         localStorage.setItem(this.redcap_notif_storage_key, JSON.stringify(this.payload));
+
+
+        //TODO, WHAT IF THEY HIT "dismiss all"?
+        this.dismissNotifs();
     }
 
     //Remove from future payloads.
@@ -496,7 +463,6 @@ class NotificationController {
         var snooze_expire = this.calcSnoozeExpiration();
         this.payload.snooze_expire[notif_type] = snooze_expire;
         localStorage.setItem(this.redcap_notif_storage_key, JSON.stringify(this.payload));
-        // this.parent.Log("snoozing " + notif_type + " " +  this.payload.snooze_expire, {});
     }
 
     isSnoozed(notif_type) {
