@@ -640,7 +640,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
                                     if(!$apiObject->dismissNotification($notif)){
                                         throw new \Exception("Cant dismiss Notification '" .$notif["record_id"]. "'");
                                     };
-                                    $return_o[] = $notif["record_id"];
+                                    $return_o[] = $notif;
                                 }
                                  $this->emDebug("need to return the dismissed record_ids", $return_o);
 
