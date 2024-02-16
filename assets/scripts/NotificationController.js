@@ -118,7 +118,7 @@ class NotificationController {
                 "offset_hours": client_offset,
             },
             "notifs": data["notifs"],
-            "snooze_expire": snooze_expire
+            "snooze_expire": (snooze_expire ??  { "banner": null, "modal": null })
         };
 
         //fresh payload, need to clear out notifs cache.
@@ -338,9 +338,9 @@ class NotificationController {
         //PHP CLASS APPEARS TO BE LOOKING FOR AN ARRAY SO WRAPPING IN []
         var _this = this;
         _this.parent.callAjax2("save_dismissals", [notif_key], function (result) {
-            var result = result.results;
+
         }, function (err) {
-            _this.setEndpointFalse(err);
+            console.log("dismissNotif", err);
         });
     }
 
