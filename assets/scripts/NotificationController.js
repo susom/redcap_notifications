@@ -69,14 +69,10 @@ class NotificationController {
             let arr = []
 
             for(let i in data) {
-                if (i != "38_PROD:DEV_ALLUSERS_3") {
-                    continue;
-                }
                 let parsed = JSON.parse(data[i])
                 parsed['key'] = i
                 arr.push(parsed)
             }
-
 
             response['notifs'] = arr
             if (response) {
@@ -341,8 +337,7 @@ class NotificationController {
     dismissNotif(notif_key) {
         //PHP CLASS APPEARS TO BE LOOKING FOR AN ARRAY SO WRAPPING IN []
         var _this = this;
-        console.log("dismiss notif", notif_key);
-        _this.parent.callAjax("save_dismissals", [notif_key], function (result) {
+        _this.parent.callAjax2("save_dismissals", [notif_key], function (result) {
             var result = result.results;
         }, function (err) {
             _this.setEndpointFalse(err);
