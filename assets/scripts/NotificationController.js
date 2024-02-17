@@ -230,6 +230,29 @@ class NotificationController {
         }
     }
 
+
+    /**
+     * Clicks on visible buttons within a specified container with a delay.
+     * @param {jQuery} container - The jQuery object representing the container.
+     * @param {number} delay - The delay between clicks in milliseconds.
+     */
+    async clickButtonsWithDelay(container, delay) {
+        if (container.find(".dismissable").length) {
+            const buttons = container.find(".dismissable .notif_hdr button").toArray();
+
+            for (const button of buttons) {
+                const $button = $(button);
+                if ($button.is(":visible")) {
+                    $button.trigger("click");
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+    }
+
+    /**
+     * Bind all on
+
     /**
      * Bind all onClick events to the banner notifications
      * @param banner JQuery variable containing the UI as String
@@ -238,13 +261,9 @@ class NotificationController {
         let _this = this;
 
         banner.find(".dismiss_all").click(function () {
-            if (banner.find(".dismissable").length) {
-                banner.find(".dismissable .notif_hdr button").each(function () {
-                    if ($(this).is(":visible")) {
-                        $(this).trigger("click");
-                    }
-                });
-            }
+            _this.clickButtonsWithDelay(banner, 100).then(() => {
+                // Additional actions after dismissing all notifications, if needed
+            });
         });
 
         banner.find(".hide_notifs").click(function () {
@@ -265,16 +284,9 @@ class NotificationController {
         let _this = this;
 
         modal.find(".dismiss_all").click(function () {
-            // _this.parent.Log("dismmiss all dismissable modal", "debug");
-            if (modal.find(".dismissable").length) {
-                // _this.parent.Log("how many modal notifs to dismiss? " + html_cont["modal"].find(".dismissable .notif_hdr button").length, "debug");
-
-                modal.find(".dismissable .notif_hdr button").each(function () {
-                    if ($(this).is(":visible")) {
-                        $(this).trigger("click");
-                    }
-                });
-            }
+            _this.clickButtonsWithDelay(modal, 100).then(() => {
+                // Additional actions after dismissing all notifications, if needed
+            });
         });
 
         modal.find(".hide_notifs").click(function () {
