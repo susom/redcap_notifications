@@ -31,7 +31,7 @@ class NotificationController {
     constructor({
                     current_user,
                     dev_prod_status,
-                    page,
+                    current_page,
                     parent,
                     project_id,
                     refresh_limit,
@@ -39,12 +39,11 @@ class NotificationController {
                     php_session
                 }) {
 
-
         this.user = current_user;
         this.parent = parent;
         this.snooze_duration = snooze_duration;
         this.refresh_limit = refresh_limit;
-        this.page = page;
+        this.page = current_page;
         this.project_id = project_id;
         this.dev_prod_status = dev_prod_status;
         this.redcap_notif_storage_key = `redcapNotifications_${this.user}`;
@@ -181,8 +180,10 @@ class NotificationController {
         if (!this.isSnoozed("banner") && this.banner_jq && this.banner_jq.find(".notif.alert").length) {
             if (!$("#redcap_banner_notifs").length && ($("#subheader").length || $("#container").length)) {
                 if (this.getCurPage() == "surveys/index.php") {
+                    this.banner_jq.addClass("on_survey_page");
                     $("#container").prepend(this.banner_jq);
                 } else {
+                    // console.log("banner",this.getCurPage());
                     if ($("#subheader").length) {
                         $("#subheader").after(this.banner_jq);
                     } else if ($("#control_center_window").length) {
@@ -200,8 +201,10 @@ class NotificationController {
             if (!$("#redcap_notifs_blocker").length) {
                 $("body").append(opaque);
                 if (this.getCurPage() == "surveys/index.php") {
+                    this.modal_jq.addClass("on_survey_page");
                     $("#container").append(this.modal_jq);
                 } else {
+                    // console.log("modal",this.getCurPage());
                     $("body").append(this.modal_jq);
                 }
             }

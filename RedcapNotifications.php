@@ -65,7 +65,9 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
                 'Surveys/invite_participants.php',
                 'DataEntry/record_status_dashboard.php',
                 'DataExport/index.php',
-                'UserRights/index.php'
+                'UserRights/index.php',
+                'surveys/index.php',
+                'Home/index.php'
             ];
 
             if (in_array(PAGE, $allowed_pages))
@@ -538,7 +540,6 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
 
         //Initialize JSMO
         $this->initializeJavascriptModuleObject();
-//        $this->processJobQueue();
         ?>
         <script src="<?= $notif_controller ?>" type="text/javascript"></script>
         <script src="<?= $utility_js ?>" type="text/javascript"></script>
