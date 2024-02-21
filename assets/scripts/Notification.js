@@ -92,13 +92,15 @@ class Notification {
     }
 
     dismissNotif(){
-        //CALL PARENT FUNCTION TO SEND TO SERVER
-        this.parent.dismissNotif(this.notif.key);
+        let _this = this;
 
         //UPDATE UI
         this.setDismissed();
         this.domjq.fadeOut("fast", function(){
             $(this).remove();
+
+            //CALL PARENT FUNCTION TO SEND TO SERVER
+            _this.parent.dismissNotif(_this.notif.key);
         });
     }
 

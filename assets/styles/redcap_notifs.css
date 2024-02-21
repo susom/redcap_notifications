@@ -32,10 +32,16 @@
     display:none;
 }
 
-#container .dismiss_all {
+#container .dismiss_all,
+#redcap_modal_notifs .dismiss_all,
+#redcap_banner_notifs .dismiss_all {
     display:none;
 }
 
+#redcap_banner_notifs .dismiss_all.has_dismiss,
+#redcap_modal_notifs .dismiss_all.has_dismiss{
+    display:inline-block;
+}
 
 
 

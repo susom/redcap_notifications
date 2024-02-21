@@ -335,6 +335,14 @@ class NotificationController {
             }
         }
 
+        //SHOW "dismiss_all" button if any notifs is dismissable
+        if(html_cont["modal"].find(".dismissbtn").length){
+            html_cont["modal"].find(".dismiss_all").addClass("has_dismiss");
+        }
+        if(html_cont["banner"].find(".dismissbtn").length) {
+            html_cont["banner"].find(".dismiss_all").addClass("has_dismiss");
+        }
+
         for (let notif_style in html_cont) {
             if (html_cont[notif_style].find(".notif.alert").length) {
                 if (notif_style == "banner") {
@@ -354,6 +362,28 @@ class NotificationController {
         }, function (err) {
             console.log("dismissNotif", err);
         });
+
+        _this.removeNotificationByKey(notif_key);
+    }
+
+    removeNotificationByKey(keyToRemove) {
+        this.notif_objs = this.notif_objs.filter(notification => notification.notif.key !== keyToRemove);
+
+        //IF NO MORE DISMISSABLE THEN REMOVE THE "dismiss_all" button
+        if(this.banner_jq && !this.banner_jq.find(".dismissbtn").length){
+            this.banner_jq.find(".dismiss_all").removeClass("has_dismiss");
+        }
+        if(this.modal_jq && !this.modal_jq.find(".dismissbtn").length){
+            this.modal_jq.find(".dismiss_all").removeClass("has_dismiss");
+        }
+
+        //IF NO MORE NOTIFS THEN HIDE RESPECTIVE UIs
+        if(this.banner_jq && !this.banner_jq.find(".notif").length){
+            this.hideNotifs("banner");
+        }
+        if(this.modal_jq && !this.modal_jq.find(".notif").length){
+            this.hideNotifs("modal");
+        }
     }
 
     snoozeNotifs(notif_type) {
