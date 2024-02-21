@@ -140,6 +140,37 @@
     background-repeat: no-repeat;
     background-position: 0 0;
 }
+
+
+
+
+
+
+.modal-dialog {
+    max-width: 950px; /* Your existing max-width */
+    margin: 20px auto; /* Adjust margin for vertical spacing from the viewport's top */
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-content {
+    display: flex;
+    flex-direction: column;
+    height: auto; /* Allows the modal content to grow based on content, up to the viewport's size */
+}
+
+.modal-body {
+    overflow-y: auto; /* Enable scrolling when content overflows */
+    max-height: 50vh; /* Maximum height before scrolling kicks in */
+    flex-grow: 1; /* Allows the body to expand within the constraints of the modal-content */
+}
+
+
+
+
+
+
+
 /*
 growler style
 
