@@ -57,7 +57,7 @@ class Notification {
         notif_jq.find(".notif_bdy .headline").text(this.getSubject());
 
         if(this.getMessage()){
-            notif_jq.find(".notif_bdy .lead").text(this.getMessage());
+            notif_jq.find(".notif_bdy .lead").html(this.getMessage());
         }else{
             notif_jq.find(".notif_bdy .lead").remove();
         }
