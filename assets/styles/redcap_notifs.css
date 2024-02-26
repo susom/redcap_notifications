@@ -28,8 +28,11 @@
     width:96%;
 }
 
-#container .dismissable button {
-    display:none;
+#redcap_modal_notifs.on_survey_page .dismiss_all,
+#redcap_banner_notifs.on_survey_page .dismiss_all,
+#redcap_modal_notifs.on_survey_page .dismissable button ,
+#redcap_banner_notifs.on_survey_page .dismissable button {
+    display:none !important;
 }
 
 #container .dismiss_all,
@@ -167,6 +170,14 @@
 
 
 
+
+#redcap_banner_notifs .notif_cont_system,
+#redcap_banner_notifs .notif_cont_project {
+    max-height: 50vh; /* Example: Adjust this value based on your needs */
+    overflow-y: auto; /* Enable vertical scroll on overflow */
+    margin-bottom: 10px; /* Optional: Adds space between notification containers */
+    padding:1px;
+}
 
 
 
