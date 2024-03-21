@@ -592,7 +592,8 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
 
 
     /* AJAX HANDLING IN HERE INSTEAD OF A STAND ALONE PAGE? */
-    public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id) {
+    public function redcap_module_ajax($action, $payload, $project_id, $record, $instrument, $event_id, $repeat_instance, $survey_hash, $response_id, $survey_queue_hash, $page, $page_full, $user_id, $group_id)
+    {
         $return_o = ["success" => false];
 
         //NO LONGER SEPARATE ACTIONS, THEY ALL FLOW THROUGH QUEUE
@@ -600,7 +601,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
         switch ($action) {
             case "get_full_payload":
 
-           // case "check_forced_refresh":
+                // case "check_forced_refresh":
 
                 // CHECK
                 // IS QUEUE AVAILABLE?
@@ -627,33 +628,38 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
                         $admin_rights = ADMIN_RIGHTS;
                     }
                     $return_o = $apiObject->getNotifications($project_id, $project_status, $admin_rights);
+
+                    // log viewed notifications for projects when user is logged in and do it one time only.
+                    if($project_id and defined('USERID')){
+                      $this->logNotificationsView($project_id, $return_o);
+                    }
                 } else {
                     throw new \Exception("No notifications");
                 }
                 break;
             case "save_dismissals":
                 $dismiss_notifs = $payload;
-                    if (count($dismiss_notifs)) {
-                        try {
-                            $apiObject = $this->getAPIObject();
-                            if ($apiObject) {
-                                foreach ($dismiss_notifs as $notif) {
-                                    if(!$apiObject->dismissNotification($notif)){
-                                        throw new \Exception("Cant dismiss Notification '" .$notif["record_id"]. "'");
-                                    };
-                                    $return_o[] = $notif;
-                                }
-                                 $this->emDebug("need to return the dismissed record_ids", $return_o);
-
-                            } else {
-                                throw new \Exception("No notifications");
+                if (count($dismiss_notifs)) {
+                    try {
+                        $apiObject = $this->getAPIObject();
+                        if ($apiObject) {
+                            foreach ($dismiss_notifs as $notif) {
+                                if (!$apiObject->dismissNotification($notif)) {
+                                    throw new \Exception("Cant dismiss Notification '" . $notif["record_id"] . "'");
+                                };
+                                $return_o[] = $notif;
                             }
-                        } catch (\Exception $e) {
-                            return $e->getMessage();
-                        };
-                    } else {
-                        $this->emError("Cannot save dismissed notification because record set was empty or there was invalid data");
-                    }
+                            $this->emDebug("need to return the dismissed record_ids", $return_o);
+
+                        } else {
+                            throw new \Exception("No notifications");
+                        }
+                    } catch (\Exception $e) {
+                        return $e->getMessage();
+                    };
+                } else {
+                    $this->emError("Cannot save dismissed notification because record set was empty or there was invalid data");
+                }
             default:
                 $this->emError("Invalid Action");
                 break;
@@ -663,6 +669,23 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
         return $return_o;
     }
 
+
+    private function logNotificationsView($projectId, $notifications)
+    {
+        $log_event_table = REDCap::getLogEventTable($projectId);
+
+        $notifications = implode("\n", array_keys($notifications));
+        $user = USERID;
+        $sql = sprintf("select count(ts) as count
+            from $log_event_table
+            where description = 'Notifications Viewed' AND data_values = '%s' AND project_id = %d and user = '%s'", db_escape($notifications), db_escape($projectId), db_escape($user));
+
+        $q = db_query($sql);
+        $row = db_fetch_assoc($q);
+        if($row['count'] == 0){
+            \REDCap::logEvent('Notifications Viewed', $notifications);
+        }
+    }
 
     /**
      * @return \Stanford\RedcapNotificationsAPI\RedcapNotificationsAPI
