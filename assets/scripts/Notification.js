@@ -35,7 +35,7 @@ class Notification {
     default_icon = {
         "info": `<i class="fas fa-info-circle"></i>`,
         "warning": `<i class="fas fa-exclamation-triangle"></i>`,
-        "danger": `<i class="fas fa-skull-crossbones"></i>`
+        "danger": `<i class="fas fa-ban"></i>`
     }
 
     constructor(notif, parent){
