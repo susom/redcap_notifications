@@ -326,7 +326,8 @@ class NotificationController {
             if (!notif.isDismissed() && !notif.isFuture() && !notif.isExpired() && notif.displayOnPage()) {
                 //force surveys to be modals no matter what
                 let notif_type = notif.getType();
-                let notif_cont = notif.getTarget() == "survey" ? ".notif_cont_project" : ".notif_cont_" + notif.getTarget();
+                // let notif_cont = notif.getTarget() == "survey" ? ".notif_cont_project" : ".notif_cont_" + notif.getTarget();
+                let notif_cont = ".notif_cont_system";
 
                 let jqunit = notif.getJQUnit();
 
@@ -484,8 +485,12 @@ class NotificationController {
                     <button class="btn-s-xs btn-rcred dismiss_all">Dismiss All</button>
                     <button class="btn-s-xs btn-rcpurple-light snooze">Snooze All <span></span></button>
                 </div>
-                <div class="notif_cont_system"></div>
-                <div class="notif_cont_project"></div>
+                <div class="notif_cont_system">
+
+                </div>
+                <div class="notif_cont_project">
+
+                </div>
             </div>`
         );
     }
