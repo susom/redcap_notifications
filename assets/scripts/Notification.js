@@ -137,13 +137,15 @@ class Notification {
         //NEED TO CHECK CURRENT PAGE CONTEXT TO DETERMINE IF NOTIFS SHOULD DISPLAY (PROJECT, SURVEY, or SYSTEM)
         if( page_project_id && this.isProjectNotif() && !this.isExcluded() && this.isCorrectProjectStatus() ){
             //project notif, page is in project context
-            if(page_project_id == this.getProjId() || this.getProjId() == ""){
+
+
+            if(this.getProjIds().includes(page_project_id) || this.getProjIds().length == 0){
                 //project notif, specified project id = current projoect context
                 return true;
             }
         }else if( this.isSurveyNotif() && this.parent.getCurPage() == "surveys/index.php" ){
             const global_var_pid = pid; //UGH
-            if(this.getProjId() == global_var_pid){
+            if(this.getProjIds().includes(global_var_pid)){
                 return true;
             }
         }else if( this.isSystemNotif() && !page_project_id){
@@ -173,8 +175,8 @@ class Notification {
     getEndDate(){
         return this.notif.note_end_dt;
     }
-    getProjId(){
-        return this.notif.note_project_id;
+    getProjIds(){
+        return this.notif.note_project_id.split(",");
     }
     getName(){
         return this.notif.note_name;
