@@ -1,7 +1,6 @@
 <?php
 
 namespace Stanford\RedcapNotifications;
-require_once "vendor/autoload.php";
 require_once "emLoggerTrait.php";
 require_once "classes/CacheInterface.php";
 require_once "classes/Redis.php";
@@ -375,7 +374,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
      * @param $excludeList
      * @return array
      */
-    private function excludeProjects($projects, $excludeList)
+    public function excludeProjects($projects, $excludeList)
     {
 
         // Convert excluded project list into array and delete those projects from the Admin Project list
@@ -391,7 +390,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
      * @param $excludeList
      * @return bool
      */
-    private function thisProjectExcluded($project, $excludeList)
+    public function thisProjectExcluded($project, $excludeList)
     {
 
         // Convert excluded project list into array and delete those projects from the Admin Project list
@@ -529,7 +528,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
 
         //DATA TO INIT JSMO module
         $notifs_config = array(
-            "current_user" => $this->clean_user($cur_user),
+            "current_user" => $this->cleanUser($cur_user),
             "snooze_duration" => $snooze_duration,
             "refresh_limit" => $refresh_limit,
             "current_page" => PAGE,
@@ -562,7 +561,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
      * @param $user
      * @return string
      */
-    public function clean_user($user)
+    public function cleanUser($user)
     {
         $user = str_replace(" ", "_", $user);
         $user = str_replace("[", "", $user);
