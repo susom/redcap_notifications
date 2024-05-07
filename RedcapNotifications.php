@@ -629,7 +629,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
                     $return_o = $apiObject->getNotifications($project_id, $project_status, $admin_rights);
 
                     // log viewed notifications for projects when user is logged in and do it one time only.
-                    if($project_id and defined('USERID')){
+                    if($project_id and defined('USERID') and !empty($return_o)){
                       $this->logNotificationsView($project_id, $return_o);
                     }
                 } else {
