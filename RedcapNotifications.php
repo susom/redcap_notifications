@@ -533,7 +533,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
             "refresh_limit" => $refresh_limit,
             "current_page" => PAGE,
             "project_id" => !empty($Proj) ? $Proj->project_id : null,
-            "dev_prod_status" => !empty($Proj) ? $Proj->status : null,
+            "dev_prod_status" => !empty($Proj) ? $Proj->project['status'] : null,
             "php_session" => session_id()
         );
 
