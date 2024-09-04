@@ -231,7 +231,8 @@ class Notification {
         let dev_prod_status = this.parent.getDevProdStatus();
         let notif_dev_prod  = this.notif["project_status"] == "" ? null : parseInt(this.notif["project_status"]);
 
-        if( dev_prod_status ){
+        if(notif_dev_prod != null){
+            if( dev_prod_status == "1"){
             //PROD, ONLY
             if(!notif_dev_prod){
                 return false;
@@ -243,6 +244,8 @@ class Notification {
                 return false;
             }
         }
+        }
+
 
         //let it pass!
         return true;
