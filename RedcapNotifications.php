@@ -672,7 +672,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
     private function logNotificationsView($projectId, $notifications)
     {
         $log_event_table = REDCap::getLogEventTable($projectId);
-
+        $records = $notifications;;
         $notifications = implode("\n", array_keys($notifications));
         $user = USERID;
         $sql = sprintf("select count(ts) as count
@@ -682,7 +682,12 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
         $q = db_query($sql);
         $row = db_fetch_assoc($q);
         if($row['count'] == 0){
-            \REDCap::logEvent('Notifications Viewed', $notifications);
+            $temp = [];
+            foreach ($records as $record) {
+                $record = json_decode($record, true);
+                $temp[] = $record['note_subject'];
+            }
+            \REDCap::logEvent( USERID . ' viewed Notifications', implode("\n", $temp));
         }
     }
 
