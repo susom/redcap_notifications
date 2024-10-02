@@ -673,11 +673,18 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
     {
         $log_event_table = REDCap::getLogEventTable($projectId);
         $records = $notifications;;
-        $notifications = implode("\n", array_keys($notifications));
+
+        $temp = [];
+        foreach ($records as $record) {
+            $record = json_decode($record, true);
+            $temp[] = $record['note_subject'];
+        }
+
         $user = USERID;
+        $description = USERID . ' viewed Notifications';
         $sql = sprintf("select count(ts) as count
             from $log_event_table
-            where description = 'Notifications Viewed' AND data_values = '%s' AND project_id = %d and user = '%s'", db_escape($notifications), db_escape($projectId), db_escape($user));
+            where description = '%s' AND data_values = '%s' AND project_id = %d and user = '%s'", db_escape($description), db_escape(implode("\n", $temp)), db_escape($projectId), db_escape($user));
 
         $q = db_query($sql);
         $row = db_fetch_assoc($q);
@@ -687,7 +694,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
                 $record = json_decode($record, true);
                 $temp[] = $record['note_subject'];
             }
-            \REDCap::logEvent( USERID . ' viewed Notifications', implode("\n", $temp));
+            \REDCap::logEvent( $description, implode("\n", $temp));
         }
     }
 
