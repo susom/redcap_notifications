@@ -522,7 +522,7 @@ class RedcapNotifications extends \ExternalModules\AbstractExternalModule
         $notif_css = $this->getUrl("assets/styles/redcap_notifs.css", true);
         $notif_controller = $this->getUrl("assets/scripts/NotificationController.js", true);
 
-        $cur_user = $this->getUser()->getUsername();
+        $cur_user = USERID;
         $snooze_duration = $this->getSystemSetting("redcap-notifs-snooze-minutes") ?? self::DEFAULT_NOTIF_SNOOZE_TIME_MIN;
         $refresh_limit = $this->getSystemSetting("redcap-notifs-refresh-limit") ?? self::DEFAULT_NOTIF_REFRESH_TIME_HOUR;
 
