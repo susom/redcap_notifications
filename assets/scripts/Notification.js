@@ -35,7 +35,7 @@ class Notification {
     default_icon = {
         "info": `<i class="fas fa-info-circle"></i>`,
         "warning": `<i class="fas fa-exclamation-triangle"></i>`,
-        "danger": `<i class="fas fa-skull-crossbones"></i>`
+        "danger": `<i class="fas fa-ban"></i>`
     }
 
     constructor(notif, parent){
@@ -57,7 +57,7 @@ class Notification {
         notif_jq.find(".notif_bdy .headline").text(this.getSubject());
 
         if(this.getMessage()){
-            notif_jq.find(".notif_bdy .lead").text(this.getMessage());
+            notif_jq.find(".notif_bdy .lead").html(this.getMessage());
         }else{
             notif_jq.find(".notif_bdy .lead").remove();
         }
@@ -92,18 +92,15 @@ class Notification {
     }
 
     dismissNotif(){
+        let _this = this;
+
+        //UPDATE UI
         this.setDismissed();
-
-        let data = {
-            "record_id": this.notif.record_id,
-            "note_name": this.notif.note_name,
-            "note_username": this.parent.user
-        };
-
-        this.parent.dismissNotif(data);
-
         this.domjq.fadeOut("fast", function(){
             $(this).remove();
+
+            //CALL PARENT FUNCTION TO SEND TO SERVER
+            _this.parent.dismissNotif(_this.notif.key);
         });
     }
 
@@ -140,13 +137,15 @@ class Notification {
         //NEED TO CHECK CURRENT PAGE CONTEXT TO DETERMINE IF NOTIFS SHOULD DISPLAY (PROJECT, SURVEY, or SYSTEM)
         if( page_project_id && this.isProjectNotif() && !this.isExcluded() && this.isCorrectProjectStatus() ){
             //project notif, page is in project context
-            if(page_project_id == this.getProjId() || this.getProjId() == ""){
+
+
+            if(this.getProjIds().includes(page_project_id) || this.getProjIds().length == 0){
                 //project notif, specified project id = current projoect context
                 return true;
             }
         }else if( this.isSurveyNotif() && this.parent.getCurPage() == "surveys/index.php" ){
             const global_var_pid = pid; //UGH
-            if(this.getProjId() == global_var_pid){
+            if(this.getProjIds().includes(global_var_pid)){
                 return true;
             }
         }else if( this.isSystemNotif() && !page_project_id){
@@ -176,8 +175,8 @@ class Notification {
     getEndDate(){
         return this.notif.note_end_dt;
     }
-    getProjId(){
-        return this.notif.note_project_id;
+    getProjIds(){
+        return this.notif.note_project_id.split(",");
     }
     getName(){
         return this.notif.note_name;
@@ -232,7 +231,8 @@ class Notification {
         let dev_prod_status = this.parent.getDevProdStatus();
         let notif_dev_prod  = this.notif["project_status"] == "" ? null : parseInt(this.notif["project_status"]);
 
-        if( dev_prod_status ){
+        if(notif_dev_prod != null){
+            if( dev_prod_status == "1"){
             //PROD, ONLY
             if(!notif_dev_prod){
                 return false;
@@ -244,6 +244,8 @@ class Notification {
                 return false;
             }
         }
+        }
+
 
         //let it pass!
         return true;

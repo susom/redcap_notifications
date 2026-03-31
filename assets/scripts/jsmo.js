@@ -17,7 +17,7 @@
         callAjax: function (action, payload, success_cb, err_cb) {
             module.ajax(action, payload).then(function (response) {
                 // Process response
-                // console.log(action + " Ajax Result: ", response);
+                console.log(action + " Ajax Result: ", response);
                 if (success_cb instanceof Function) {
                     success_cb(response);
                 }
@@ -28,6 +28,12 @@
                     err_cb(err);
                 }
             });
+        },
+
+        callAjax2: function (action, payload) {
+          return module.ajax(action, payload)
+              .then(res => res)
+              .catch(err => err)
         },
 
         Log: function(subject, msg_o){

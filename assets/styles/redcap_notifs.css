@@ -28,14 +28,23 @@
     width:96%;
 }
 
-#container .dismissable button {
+#redcap_modal_notifs.on_survey_page .dismiss_all,
+#redcap_banner_notifs.on_survey_page .dismiss_all,
+#redcap_modal_notifs.on_survey_page .dismissable button ,
+#redcap_banner_notifs.on_survey_page .dismissable button {
+    display:none !important;
+}
+
+#container .dismiss_all,
+#redcap_modal_notifs .dismiss_all,
+#redcap_banner_notifs .dismiss_all {
     display:none;
 }
 
-#container .dismiss_all {
-    display:none;
+#redcap_banner_notifs .dismiss_all.has_dismiss,
+#redcap_modal_notifs .dismiss_all.has_dismiss{
+    display:inline-block;
 }
-
 
 
 
@@ -134,6 +143,45 @@
     background-repeat: no-repeat;
     background-position: 0 0;
 }
+
+
+
+
+
+
+.modal-dialog {
+    max-width: 950px; /* Your existing max-width */
+    margin: 20px auto; /* Adjust margin for vertical spacing from the viewport's top */
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-content {
+    display: flex;
+    flex-direction: column;
+    height: auto; /* Allows the modal content to grow based on content, up to the viewport's size */
+}
+
+.modal-body {
+    overflow-y: auto; /* Enable scrolling when content overflows */
+    max-height: 50vh; /* Maximum height before scrolling kicks in */
+    flex-grow: 1; /* Allows the body to expand within the constraints of the modal-content */
+}
+
+
+
+
+#redcap_banner_notifs .notif_cont_system,
+#redcap_banner_notifs .notif_cont_project {
+    max-height: 50vh; /* Example: Adjust this value based on your needs */
+    overflow-y: auto; /* Enable vertical scroll on overflow */
+    margin-bottom: 10px; /* Optional: Adds space between notification containers */
+    padding:1px;
+}
+
+
+
+
 /*
 growler style
 

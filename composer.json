@@ -1,0 +1,9 @@
+{
+    "name": "jmschult/redcap_notifications_v9.9.9",
+    "description": "Implementation of user notifications on redcap",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "predis/predis": "^2.2"
+    }
+}
